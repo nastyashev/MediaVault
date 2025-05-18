@@ -1,0 +1,30 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vlc="clr-namespace:LibVLCSharp.Avalonia;assembly=LibVLCSharp.Avalonia"
+        xmlns:local="clr-namespace:MediaVault.ViewModels"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        x:Class="MediaVault.MediaPlayerWindow"
+        x:DataType="local:MediaPlayerViewModel"
+        Title="MediaPlayerWindow">
+
+	<Grid RowDefinitions="*,Auto">
+		<vlc:VideoView Name="VideoView" Grid.Row="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+		<StackPanel Grid.Row="1" Orientation="Vertical" HorizontalAlignment="Stretch" Margin="10">
+			<Slider
+                Minimum="0"
+                Maximum="{Binding Duration}"
+                Value="{Binding Position, Mode=TwoWay}"
+                IsEnabled="{Binding IsSeekable}"
+                TickFrequency="1"
+                TickPlacement="BottomRight"
+                Margin="10,0,10,0"
+                VerticalAlignment="Center"/>
+			<StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+				<Button Content="Play" Command="{Binding PlayCommand}" Margin="5"/>
+				<Button Content="Pause" Command="{Binding PauseCommand}" Margin="5"/>
+			</StackPanel>
+		</StackPanel>
+	</Grid>
+</Window>

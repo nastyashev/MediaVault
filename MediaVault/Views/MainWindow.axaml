@@ -1,6 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:vm="using:MediaVault.ViewModels"
+        xmlns:vm="clr-namespace:MediaVault.ViewModels"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
@@ -9,12 +9,39 @@
         Icon="/Assets/avalonia-logo.ico"
         Title="MediaVault">
 
-    <Design.DataContext>
-        <!-- This only sets the DataContext for the previewer in an IDE,
-             to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
-        <vm:MainWindowViewModel/>
-    </Design.DataContext>
+	<Design.DataContext>
+		<vm:MainWindowViewModel/>
+	</Design.DataContext>
 
-    <TextBlock Text="{Binding Greeting}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+	<DockPanel>
+		<StackPanel DockPanel.Dock="Top">
+			<Button Content="Налаштування" Command="{Binding SettingsCommand}" Margin="0,0,5,0"/>
+			<Button Content="Scan Directory" Command="{Binding ScanDirectoryCommand}"/>
+			<TextBox x:Name="SearchBox" Width="200" VerticalAlignment="Center" />
+			<Button Content="Search" Command="{Binding SearchCommand}"/>
+			<ToggleButton Content="List View" IsChecked="{Binding IsListView}"/>
+			<ToggleButton Content="Gallery View" IsChecked="{Binding IsGalleryView}"/>
+		</StackPanel>
 
+		<StackPanel Width="200" DockPanel.Dock="Left">
+			<TextBlock Text="Categories" FontWeight="Bold" Margin="5"/>
+			<ListBox ItemsSource="{Binding Categories}"/>
+		</StackPanel>
+
+		<ScrollViewer>
+			<ListBox Name="MediaItemsControl"
+                     ItemsSource="{Binding MediaFiles}"
+                     SelectedItem="{Binding SelectedMediaFile, Mode=TwoWay}"
+                     DoubleTapped="OnMediaItemDoubleTapped">
+				<ListBox.ItemTemplate>
+					<DataTemplate>
+						<StackPanel Margin="5">
+							<Image Source="{Binding CoverImagePath}" Width="150" Height="150"/>
+							<TextBlock Text="{Binding Title}" HorizontalAlignment="Center"/>
+						</StackPanel>
+					</DataTemplate>
+				</ListBox.ItemTemplate>
+			</ListBox>
+		</ScrollViewer>
+	</DockPanel>
 </Window>
