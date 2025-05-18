@@ -13,14 +13,24 @@
 		<vlc:VideoView Name="VideoView" Grid.Row="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
 		<StackPanel Grid.Row="1" Orientation="Vertical" HorizontalAlignment="Stretch" Margin="10">
 			<Slider
-                Minimum="0"
-                Maximum="{Binding Duration}"
-                Value="{Binding Position, Mode=TwoWay}"
-                IsEnabled="{Binding IsSeekable}"
-                TickFrequency="1"
-                TickPlacement="BottomRight"
-                Margin="10,0,10,0"
-                VerticalAlignment="Center"/>
+                                Minimum="0"
+                                Maximum="{Binding Duration}"
+                                Value="{Binding Position, Mode=TwoWay}"
+                                IsEnabled="{Binding IsSeekable}"
+                                TickFrequency="1"
+                                TickPlacement="BottomRight"
+                                Margin="10,0,10,0"
+                                VerticalAlignment="Center"/>
+			<Slider
+                                Minimum="0"
+                                Maximum="100"
+                                Value="{Binding Volume, Mode=TwoWay}"
+                                TickFrequency="5"
+                                TickPlacement="BottomRight"
+                                Margin="10,5,10,0"
+                                VerticalAlignment="Center"
+                                ToolTip.Tip="Гучність"/>
+			<TextBlock Text="{Binding Volume}" HorizontalAlignment="Center" Margin="0,0,0,5"/>
 			<StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
 				<Button Content="Play" Command="{Binding PlayCommand}" Margin="5"/>
 				<Button Content="Pause" Command="{Binding PauseCommand}" Margin="5"/>

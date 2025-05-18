@@ -51,6 +51,21 @@ namespace MediaVault.ViewModels
             private set => SetProperty(ref _isSeekable, value);
         }
 
+        private int _volume = 100;
+        public int Volume
+        {
+            get => _volume;
+            set
+            {
+                if (_volume != value)
+                {
+                    _volume = value;
+                    MediaPlayer.Volume = _volume;
+                    OnPropertyChanged(nameof(Volume));
+                }
+            }
+        }
+
         // Оновлюйте позицію під час відтворення
         public MediaPlayerViewModel(MediaFile mediaFile)
         {
@@ -99,6 +114,8 @@ namespace MediaVault.ViewModels
                 Avalonia.Threading.Dispatcher.UIThread.Post(UpdateIsSeekable);
                 OnPropertyChanged(nameof(Duration));
             };
+
+            MediaPlayer.Volume = _volume;
         }
 
         // Додаємо допоміжний метод:
