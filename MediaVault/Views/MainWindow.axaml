@@ -15,19 +15,19 @@
 
 	<DockPanel>
 		<StackPanel DockPanel.Dock="Top">
-			<Button Content="Налаштування" Command="{Binding SettingsCommand}" Margin="0,0,5,0"/>
-			<Button Content="Scan Directory" Command="{Binding ScanDirectoryCommand}"/>
-			<TextBox x:Name="SearchBox" Width="200" VerticalAlignment="Center" />
-			<Button Content="Search" Command="{Binding SearchCommand}"/>
-			<ToggleButton Content="List View" IsChecked="{Binding IsListView}"/>
-			<ToggleButton Content="Gallery View" IsChecked="{Binding IsGalleryView}"/>
-			<Button Content="Історія перегляду" Click="OnViewingHistoryClick" Margin="0,0,5,0"/>
+			<!-- <Button Content="Налаштування" Command="{Binding SettingsCommand}" Margin="0,0,5,0"/> -->
+			<Button Content="Обрати директорію" Command="{Binding ScanDirectoryCommand}" Margin="10,10,10,10"/>
+			<Button Content="Історія перегляду" Click="OnViewingHistoryClick" Margin="10,10,10,10"/>
+			<!-- <TextBox x:Name="SearchBox" Width="200" VerticalAlignment="Center" /> -->
+			<!-- <Button Content="Search" Command="{Binding SearchCommand}"/> -->
+			<ToggleButton Content="Список" IsChecked="{Binding IsListView}" Margin="10,5,10,5"/>
+			<ToggleButton Content="Галерея" IsChecked="{Binding IsGalleryView}" Margin="10,0,10,5"/>
 		</StackPanel>
 
-		<StackPanel Width="200" DockPanel.Dock="Left">
+		<!-- <StackPanel Width="200" DockPanel.Dock="Left">
 			<TextBlock Text="Categories" FontWeight="Bold" Margin="5"/>
 			<ListBox ItemsSource="{Binding Categories}"/>
-		</StackPanel>
+		</StackPanel> -->
 
 		<ScrollViewer>
 			<ListBox Name="MediaItemsControl"

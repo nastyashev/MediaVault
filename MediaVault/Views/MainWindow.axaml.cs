@@ -27,13 +27,13 @@ namespace MediaVault.Views
             }
         }
 
-        private void OnSearchClick(object sender, Avalonia.Interactivity.RoutedEventArgs e)
-        {
-            if (DataContext is MainWindowViewModel viewModel && !string.IsNullOrEmpty(SearchBox?.Text))
-            {
-                viewModel.Search(SearchBox.Text);
-            }
-        }
+        // private void OnSearchClick(object sender, Avalonia.Interactivity.RoutedEventArgs e)
+        // {
+        //     if (DataContext is MainWindowViewModel viewModel && !string.IsNullOrEmpty(SearchBox?.Text))
+        //     {
+        //         viewModel.Search(SearchBox.Text);
+        //     }
+        // }
 
         private void OnToggleViewClick(object sender, Avalonia.Interactivity.RoutedEventArgs e)
         {

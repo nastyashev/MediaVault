@@ -13,12 +13,11 @@
                 <DataTemplate x:DataType="model:ViewingHistoryRecord">
                     <TextBlock>
                         <TextBlock.Text>
-                            <!-- Форматування рядка: ID, Назва, Дата, Статус -->
-                            <MultiBinding StringFormat="ID: {0} | Назва: {1} | Дата: {2:g} | Статус: {3}">
+                            <!-- Форматування рядка: ID, Назва, Дата -->
+                            <MultiBinding StringFormat="ID: {0} | Назва: {1} | Дата: {2:g}">
                                 <Binding Path="RecordId"/>
                                 <Binding Path="FileName"/>
                                 <Binding Path="ViewDate"/>
-                                <Binding Path="Status"/>
                             </MultiBinding>
                         </TextBlock.Text>
                     </TextBlock>
