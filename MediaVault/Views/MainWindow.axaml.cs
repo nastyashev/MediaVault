@@ -23,7 +23,7 @@ namespace MediaVault.Views
 
             if (folderResult != null && folderResult.Count > 0 && DataContext is MainWindowViewModel viewModel)
             {
-                viewModel.ScanDirectory(folderResult[0].Path.LocalPath);
+                await viewModel.ScanDirectory(folderResult[0].Path.LocalPath);
             }
         }
 

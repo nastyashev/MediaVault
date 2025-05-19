@@ -3,6 +3,7 @@
         xmlns:vm="clr-namespace:MediaVault.ViewModels"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+		xmlns:local="clr-namespace:MediaVault.Views.Converters"
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
         x:Class="MediaVault.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
@@ -12,6 +13,10 @@
 	<Design.DataContext>
 		<vm:MainWindowViewModel/>
 	</Design.DataContext>
+
+	<Window.Resources>
+        <local:UrlToBitmapConverter x:Key="UrlToBitmapConverter"/>
+    </Window.Resources>
 
 	<DockPanel>
 		<StackPanel DockPanel.Dock="Top">
@@ -43,8 +48,8 @@
 								<Image Source="{Binding CoverImagePath}" Width="48" Height="48" Margin="0,0,10,0"/>
 								<StackPanel>
 									<TextBlock Text="{Binding Title}" FontWeight="Bold"/>
-									<!-- <TextBlock Text="{Binding Genre}" FontSize="12"/>
-									<TextBlock Text="{Binding ReleaseYear}" FontSize="12"/> -->
+									<TextBlock Text="{Binding Genre}" FontSize="12"/>
+									<TextBlock Text="{Binding ReleaseYear}" FontSize="12"/>
 								</StackPanel>
 							</StackPanel>
 						</DataTemplate>
@@ -64,11 +69,13 @@
 					</ListBox.ItemsPanel>
 					<ListBox.ItemTemplate>
 						<DataTemplate>
-							<StackPanel Margin="10" Width="180">
+							<StackPanel Margin="10" Width="200">
 								<Border BorderBrush="Gray" BorderThickness="1">
-									<Image Source="{Binding CoverImagePath}" Width="160" Height="120"/>
+									<Image Width="180" Height="260" Stretch="UniformToFill" Source="{Binding CoverImagePath, Converter={StaticResource UrlToBitmapConverter}}"/>
 								</Border>
 								<TextBlock Text="{Binding Title}" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+								<TextBlock Text="{Binding Genre}" HorizontalAlignment="Center" FontSize="12"/>
+								<TextBlock Text="{Binding ReleaseYear}" HorizontalAlignment="Center" FontSize="12"/>
 							</StackPanel>
 						</DataTemplate>
 					</ListBox.ItemTemplate>

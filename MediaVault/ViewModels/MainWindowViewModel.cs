@@ -1,12 +1,16 @@
 ﻿using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using System.Xml.Serialization;
 using MediaVault.Models;
 using TMDbLib.Client;
+using System.Collections.Generic;
+using Avalonia.Threading;
 
 namespace MediaVault.ViewModels
 {
@@ -16,6 +20,8 @@ namespace MediaVault.ViewModels
         private bool _isListView;
         private bool _isGalleryView;
         private MediaFile? _selectedMediaFile;
+        private static readonly string LibraryDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data");
+        private static readonly string LibraryFilePath = Path.Combine(LibraryDirectory, "library.xml");
 
         public MainWindowViewModel()
         {
@@ -28,6 +34,18 @@ namespace MediaVault.ViewModels
             SettingsCommand = new RelayCommand(_ => OnSettings());
             ScanDirectoryCommand = new RelayCommand(_ => OnScanDirectory());
             SearchCommand = new RelayCommand(_ => OnSearch());
+
+            // Ensure Data directory exists
+            if (!Directory.Exists(LibraryDirectory))
+                Directory.CreateDirectory(LibraryDirectory);
+
+            // Load library from file if exists
+            if (File.Exists(LibraryFilePath))
+            {
+                LoadLibraryAndDisplay();
+            }
+
+            Debug.WriteLine("[MainWindowViewModel] Initialized");
         }
 
         public string Greeting { get; } = "Welcome to Avalonia!";
@@ -79,20 +97,86 @@ namespace MediaVault.ViewModels
         public ICommand ScanDirectoryCommand { get; }
         public ICommand SearchCommand { get; }
 
-        public void ScanDirectory(string path)
+        public async Task ScanDirectory(string path)
         {
             if (Directory.Exists(path))
             {
-                // Список підтримуваних розширень
                 var supportedExtensions = new[] { ".mp4", ".avi", ".mkv", ".mov", ".mp3", ".wav", ".flac" };
-
                 var files = Directory.EnumerateFiles(path, "*.*", SearchOption.AllDirectories)
                                      .Where(file => supportedExtensions.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase));
+
+                var libraryEntries = new List<LibraryEntry>();
+
+                MediaFiles.Clear();
+
+                var updateTasks = new List<Task>();
+
                 foreach (var file in files)
                 {
                     var mediaFile = new MediaFile(Path.GetFileName(file), file, GetMediaType(file));
-                    MediaFiles.Add(mediaFile);
+                    string titleWithoutExtension = Path.GetFileNameWithoutExtension(file);
+                    var updateTask = UpdateMediaDetailsFromTMDb(mediaFile, titleWithoutExtension).ContinueWith(_ =>
+                    {
+                        Dispatcher.UIThread.Post(() =>
+                        {
+                            MediaFiles.Add(mediaFile);
+
+                            var entry = new LibraryEntry
+                            {
+                                file_id = file,
+                                title = mediaFile.Title,
+                                genre = mediaFile.Genre,
+                                added_date = DateTime.Now,
+                                metadata = $"ReleaseYear: {mediaFile.ReleaseYear}, Cover: {mediaFile.CoverImagePath}"
+                            };
+                            libraryEntries.Add(entry);
+                        });
+                    });
+                    updateTasks.Add(updateTask);
                 }
+
+                await Task.WhenAll(updateTasks);
+
+                SaveLibraryToXml(libraryEntries, LibraryFilePath);
+            }
+        }
+
+        private void SaveLibraryToXml(List<LibraryEntry> entries, string filePath)
+        {
+            try
+            {
+                // Ensure Data directory exists before saving
+                var dir = Path.GetDirectoryName(filePath);
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                    Directory.CreateDirectory(dir);
+
+                var serializer = new XmlSerializer(typeof(List<LibraryEntry>));
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                {
+                    serializer.Serialize(stream, entries);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error saving library: {ex.Message}");
+            }
+        }
+
+        private List<LibraryEntry> LoadLibraryFromXml(string filePath)
+        {
+            try
+            {
+                if (!File.Exists(filePath)) return new List<LibraryEntry>();
+                var serializer = new XmlSerializer(typeof(List<LibraryEntry>));
+                using (var stream = new FileStream(filePath, FileMode.Open))
+                {
+                    return (List<LibraryEntry>)serializer.Deserialize(stream);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error loading library: {ex.Message}");
+                return new List<LibraryEntry>();
             }
         }
 
@@ -141,22 +225,32 @@ namespace MediaVault.ViewModels
             return MediaType.Audio;
         }
 
-        private async Task UpdateMediaDetailsFromTMDb(MediaFile mediaFile)
+        // Змініть сигнатуру і додайте логування
+        private async Task UpdateMediaDetailsFromTMDb(MediaFile mediaFile, string searchTitle)
         {
             try
             {
-                var movie = await _tmdbClient.GetMovieAsync(mediaFile.Title);
+                Debug.WriteLine($"[TMDb] Searching for: {searchTitle}");
+                var searchResult = await _tmdbClient.SearchMovieAsync(searchTitle);
+                Debug.WriteLine($"[TMDb] Results for '{searchTitle}': {searchResult.Results.Count}");
+                var movie = searchResult.Results.FirstOrDefault();
                 if (movie != null)
                 {
-                    mediaFile.Genre = string.Join(", ", movie.Genres.Select(g => g.Name));
-                    mediaFile.CoverImagePath = "https://image.tmdb.org/t/p/w500" + movie.PosterPath; // Базовий URL для зображень
-                    mediaFile.ReleaseYear = movie.ReleaseDate?.Year ?? 0;
+                    Debug.WriteLine($"[TMDb] Found: {movie.Title} (ID: {movie.Id})");
+                    var movieDetails = await _tmdbClient.GetMovieAsync(movie.Id);
+                    mediaFile.Genre = string.Join(", ", movieDetails.Genres.Select(g => g.Name));
+                    mediaFile.CoverImagePath = "https://image.tmdb.org/t/p/w500" + movieDetails.PosterPath;
+                    mediaFile.ReleaseYear = movieDetails.ReleaseDate?.Year ?? 0;
+                    Debug.WriteLine($"[TMDb] Genre: {mediaFile.Genre}, Year: {mediaFile.ReleaseYear}, Cover: {mediaFile.CoverImagePath}");
+                }
+                else
+                {
+                    Debug.WriteLine($"[TMDb] No movie found for '{searchTitle}'");
                 }
             }
             catch (Exception ex)
             {
-                // Логіка обробки помилок: поки що просто виводимо в консоль
-                Console.WriteLine($"Error fetching data from TMDb: {ex.Message}");
+                Debug.WriteLine($"Error fetching data from TMDb: {ex.Message}");
             }
         }
 
@@ -178,7 +272,6 @@ namespace MediaVault.ViewModels
                 Title = "Оберіть директорію для сканування"
             };
 
-            // Потрібно отримати reference на головне вікно (MainWindow)
             var mainWindow = Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
                 ? desktop.MainWindow
                 : null;
@@ -188,8 +281,7 @@ namespace MediaVault.ViewModels
                 var folder = await dialog.ShowAsync(mainWindow);
                 if (!string.IsNullOrEmpty(folder))
                 {
-                    MediaFiles.Clear();
-                    ScanDirectory(folder);
+                    await ScanDirectory(folder);
                 }
             }
         }
@@ -199,5 +291,71 @@ namespace MediaVault.ViewModels
         public event PropertyChangedEventHandler? PropertyChanged;
         protected void OnPropertyChanged(string propertyName) =>
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+
+        // Допоміжний клас для XML
+        public class LibraryEntry
+        {
+            public string file_id { get; set; }
+            public string title { get; set; }
+            public string genre { get; set; }
+            public DateTime added_date { get; set; }
+            public string metadata { get; set; }
+        }
+
+        public void LoadLibraryAndDisplay()
+        {
+            MediaFiles.Clear();
+            var entries = LoadLibraryFromXml(LibraryFilePath);
+            foreach (var entry in entries)
+            {
+                MediaFiles.Add(LibraryEntryToMediaFile(entry));
+            }
+        }
+
+        private MediaFile LibraryEntryToMediaFile(LibraryEntry entry)
+        {
+            var mediaType = GetMediaType(entry.file_id);
+            var mediaFile = new MediaFile(entry.title, entry.file_id, mediaType)
+            {
+                Genre = entry.genre,
+                // metadata: ReleaseYear, Cover
+                ReleaseYear = ParseReleaseYearFromMetadata(entry.metadata),
+                CoverImagePath = ParseCoverFromMetadata(entry.metadata)
+            };
+            return mediaFile;
+        }
+
+        private static int ParseReleaseYearFromMetadata(string metadata)
+        {
+            // metadata format: "ReleaseYear: {year}, Cover: {cover}"
+            if (string.IsNullOrEmpty(metadata)) return 0;
+            var parts = metadata.Split(',');
+            foreach (var part in parts)
+            {
+                if (part.Trim().StartsWith("ReleaseYear:"))
+                {
+                    var val = part.Split(':')[1].Trim();
+                    if (int.TryParse(val, out int year))
+                        return year;
+                }
+            }
+            return 0;
+        }
+
+        private string ParseCoverFromMetadata(string metadata)
+        {
+            if (string.IsNullOrEmpty(metadata)) return string.Empty;
+            var parts = metadata.Split(',');
+            foreach (var part in parts)
+            {
+                var trimmed = part.Trim();
+                if (trimmed.StartsWith("Cover:"))
+                {
+                    var val = trimmed.Substring("Cover:".Length).Trim();
+                    return val;
+                }
+            }
+            return string.Empty;
+        }
     }
 }
