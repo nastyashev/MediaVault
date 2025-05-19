@@ -30,19 +30,50 @@
 		</StackPanel> -->
 
 		<ScrollViewer>
-			<ListBox Name="MediaItemsControl"
-                     ItemsSource="{Binding MediaFiles}"
-                     SelectedItem="{Binding SelectedMediaFile, Mode=TwoWay}"
-                     DoubleTapped="OnMediaItemDoubleTapped">
-				<ListBox.ItemTemplate>
-					<DataTemplate>
-						<StackPanel Margin="5">
-							<Image Source="{Binding CoverImagePath}" Width="150" Height="150"/>
-							<TextBlock Text="{Binding Title}" HorizontalAlignment="Center"/>
-						</StackPanel>
-					</DataTemplate>
-				</ListBox.ItemTemplate>
-			</ListBox>
+			<Panel>
+				<!-- Список -->
+				<ListBox Name="MediaListBox"
+                         ItemsSource="{Binding MediaFiles}"
+                         SelectedItem="{Binding SelectedMediaFile, Mode=TwoWay}"
+                         DoubleTapped="OnMediaItemDoubleTapped"
+                         IsVisible="{Binding IsListView}">
+					<ListBox.ItemTemplate>
+						<DataTemplate>
+							<StackPanel Orientation="Horizontal" Margin="5">
+								<Image Source="{Binding CoverImagePath}" Width="48" Height="48" Margin="0,0,10,0"/>
+								<StackPanel>
+									<TextBlock Text="{Binding Title}" FontWeight="Bold"/>
+									<!-- <TextBlock Text="{Binding Genre}" FontSize="12"/>
+									<TextBlock Text="{Binding ReleaseYear}" FontSize="12"/> -->
+								</StackPanel>
+							</StackPanel>
+						</DataTemplate>
+					</ListBox.ItemTemplate>
+				</ListBox>
+
+				<!-- Галерея (тепер це ListBox для підтримки вибору) -->
+				<ListBox Name="MediaGallery"
+                         ItemsSource="{Binding MediaFiles}"
+                         SelectedItem="{Binding SelectedMediaFile, Mode=TwoWay}"
+                         DoubleTapped="OnMediaItemDoubleTapped"
+                         IsVisible="{Binding IsGalleryView}">
+					<ListBox.ItemsPanel>
+						<ItemsPanelTemplate>
+							<WrapPanel Orientation="Horizontal" />
+						</ItemsPanelTemplate>
+					</ListBox.ItemsPanel>
+					<ListBox.ItemTemplate>
+						<DataTemplate>
+							<StackPanel Margin="10" Width="180">
+								<Border BorderBrush="Gray" BorderThickness="1">
+									<Image Source="{Binding CoverImagePath}" Width="160" Height="120"/>
+								</Border>
+								<TextBlock Text="{Binding Title}" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+							</StackPanel>
+						</DataTemplate>
+					</ListBox.ItemTemplate>
+				</ListBox>
+			</Panel>
 		</ScrollViewer>
 	</DockPanel>
 </Window>

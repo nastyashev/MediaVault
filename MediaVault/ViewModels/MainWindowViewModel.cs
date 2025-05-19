@@ -55,6 +55,7 @@ namespace MediaVault.ViewModels
                 if (_isListView != value)
                 {
                     _isListView = value;
+                    if (_isListView) IsGalleryView = false;
                     OnPropertyChanged(nameof(IsListView));
                 }
             }
@@ -68,6 +69,7 @@ namespace MediaVault.ViewModels
                 if (_isGalleryView != value)
                 {
                     _isGalleryView = value;
+                    if (_isGalleryView) IsListView = false;
                     OnPropertyChanged(nameof(IsGalleryView));
                 }
             }
@@ -107,8 +109,16 @@ namespace MediaVault.ViewModels
 
         public void ToggleViewMode()
         {
-            IsListView = !IsListView;
-            IsGalleryView = !IsGalleryView;
+            if (IsListView)
+            {
+                IsListView = false;
+                IsGalleryView = true;
+            }
+            else
+            {
+                IsListView = true;
+                IsGalleryView = false;
+            }
         }
 
         public void FilterByCategory(string category)
