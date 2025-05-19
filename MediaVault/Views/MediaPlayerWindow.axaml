@@ -17,16 +17,12 @@
                                 Maximum="{Binding Duration}"
                                 Value="{Binding Position, Mode=TwoWay}"
                                 IsEnabled="{Binding IsSeekable}"
-                                TickFrequency="1"
-                                TickPlacement="BottomRight"
                                 Margin="10,0,10,0"
                                 VerticalAlignment="Center"/>
 			<Slider
                                 Minimum="0"
                                 Maximum="100"
                                 Value="{Binding Volume, Mode=TwoWay}"
-                                TickFrequency="5"
-                                TickPlacement="BottomRight"
                                 Margin="10,5,10,0"
                                 VerticalAlignment="Center"
                                 ToolTip.Tip="Гучність"/>

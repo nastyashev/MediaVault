@@ -21,6 +21,7 @@
 			<Button Content="Search" Command="{Binding SearchCommand}"/>
 			<ToggleButton Content="List View" IsChecked="{Binding IsListView}"/>
 			<ToggleButton Content="Gallery View" IsChecked="{Binding IsGalleryView}"/>
+			<Button Content="Історія перегляду" Click="OnViewingHistoryClick" Margin="0,0,5,0"/>
 		</StackPanel>
 
 		<StackPanel Width="200" DockPanel.Dock="Left">

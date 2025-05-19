@@ -1,0 +1,17 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:MediaVault.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:model="clr-namespace:MediaVault.Models"
+        x:Class="MediaVault.Views.ViewingHistoryWindow"
+        Title="Історія перегляду" Width="600" Height="400">
+    <DataGrid ItemsSource="{Binding Records}" AutoGenerateColumns="False" IsReadOnly="True" x:DataType="model:ViewingHistoryLog">
+        <DataGrid.Columns>
+            <DataGridTextColumn Header="ID" Binding="{Binding RecordId}" Width="50"/>
+            <DataGridTextColumn Header="File Name" Binding="{Binding FileName}" Width="*"/>
+            <DataGridTextColumn Header="Start Time" Binding="{Binding ViewDate}" Width="150"/>
+            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="100"/>
+        </DataGrid.Columns>
+    </DataGrid>
+</Window>

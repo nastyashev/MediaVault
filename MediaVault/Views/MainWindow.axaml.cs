@@ -64,5 +64,16 @@ namespace MediaVault.Views
         //     var settingsWindow = new SettingsWindow();
         //     await settingsWindow.ShowDialog(this);
         // }
+
+        private void OnViewingHistoryClick(object sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            var historyWindow = new ViewingHistoryWindow
+            {
+                Title = "Історія перегляду",
+                Width = 600,
+                Height = 400
+            };
+            historyWindow.ShowDialog(this);
+        }
     }
 }

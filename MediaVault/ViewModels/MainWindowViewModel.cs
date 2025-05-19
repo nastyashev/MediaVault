@@ -19,7 +19,7 @@ namespace MediaVault.ViewModels
 
         public MainWindowViewModel()
         {
-            _tmdbClient = new TMDbClient(""); // Вставте TMDB API Key
+            _tmdbClient = new TMDbClient("7354fcc62bb407139f5fcd0e5b62a435"); // Вставте TMDB API Key
             MediaFiles = new ObservableCollection<MediaFile>();
             Categories = new ObservableCollection<string> { "All", "Movies", "Series", "Music" };
             _isListView = true;

@@ -7,6 +7,7 @@ using System.Windows.Input;
 using Avalonia;
 using LibVLCSharp.Shared;
 using MediaVault.Models;
+using System.Diagnostics;
 
 namespace MediaVault.ViewModels
 {
@@ -66,6 +67,11 @@ namespace MediaVault.ViewModels
             }
         }
 
+        private readonly MediaFile _mediaFile;
+        private DateTime? _viewStartTime;
+        private int _lastLoggedPosition = 0;
+        private int _currentRecordId = 0;
+
         // Оновлюйте позицію під час відтворення
         public MediaPlayerViewModel(MediaFile mediaFile)
         {
@@ -98,6 +104,13 @@ namespace MediaVault.ViewModels
                 {
                     _position = MediaPlayer.Position * Duration;
                     OnPropertyChanged(nameof(Position));
+
+                    // --- Позначення як переглянутого при 95% ---
+                    if (!_mediaFile.IsWatched && MediaPlayer.Position >= 0.95f)
+                    {
+                        _mediaFile.IsWatched = true;
+                        LogViewPauseOrStop("переглянуто");
+                    }
                 }
             };
             MediaPlayer.LengthChanged += (s, e) =>
@@ -116,6 +129,7 @@ namespace MediaVault.ViewModels
             };
 
             MediaPlayer.Volume = _volume;
+            _mediaFile = mediaFile;
         }
 
         // Додаємо допоміжний метод:
@@ -128,13 +142,59 @@ namespace MediaVault.ViewModels
         {
             MediaPlayer.Play();
             OnPropertyChanged(nameof(IsSeekable));
+            if (_viewStartTime == null)
+            {
+                _viewStartTime = DateTime.Now;
+                LogViewStart();
+            }
         }
-        private void Pause() => MediaPlayer.Pause();
+        private void Pause()
+        {
+            MediaPlayer.Pause();
+            LogViewPauseOrStop("в процесі");
+        }
 
         public void Dispose()
         {
+            LogViewPauseOrStop("переглянуто");
             MediaPlayer.Dispose();
             _libVLC.Dispose();
+        }
+
+        // --- Logging logic ---
+        private void LogViewStart()
+        {
+            var log = ViewingHistoryLog.Load();
+            var record = new ViewingHistoryRecord
+            {
+                RecordId = log.GetNextRecordId(),
+                FileId = _mediaFile.FilePath,
+                FileName = _mediaFile.Title,
+                ViewDate = _viewStartTime ?? DateTime.Now,
+                Duration = 0,
+                EndTime = 0,
+                Status = "в процесі"
+            };
+            _currentRecordId = record.RecordId;
+            log.AddRecord(record);
+            log.Save(); // Додаємо збереження після додавання запису
+        }
+
+        private void LogViewPauseOrStop(string status)
+        {
+            if (_viewStartTime == null) return;
+            var log = ViewingHistoryLog.Load();
+            var record = log.Records.FirstOrDefault(r => r.RecordId == _currentRecordId);
+            if (record != null)
+            {
+                var now = DateTime.Now;
+                var duration = (int)(now - _viewStartTime.Value).TotalSeconds;
+                int endTime = (int)Position;
+                record.Duration = duration;
+                record.EndTime = endTime;
+                record.Status = status;
+                log.Save();
+            }
         }
     }
 
