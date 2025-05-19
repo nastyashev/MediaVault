@@ -4,22 +4,26 @@
     xmlns:vm="clr-namespace:MediaVault.ViewModels"
     xmlns:model="clr-namespace:MediaVault.Models"
     x:Class="MediaVault.Views.ViewingHistoryWindow"
+    x:DataType="vm:ViewingHistoryViewModel"
     Title="Історія перегляду" Width="600" Height="400">
-    <ListBox ItemsSource="{Binding SortedHistory}" x:DataType="vm:ViewingHistoryViewModel">
-        <ListBox.ItemTemplate>
-            <DataTemplate x:DataType="model:ViewingHistoryRecord">
-                <TextBlock>
-                    <TextBlock.Text>
-                        <!-- Форматування рядка: ID, Назва, Дата, Статус -->
-                        <MultiBinding StringFormat="ID: {0} | Назва: {1} | Дата: {2:g} | Статус: {3}">
-                            <Binding Path="RecordId"/>
-                            <Binding Path="FileName"/>
-                            <Binding Path="ViewDate"/>
-                            <Binding Path="Status"/>
-                        </MultiBinding>
-                    </TextBlock.Text>
-                </TextBlock>
-            </DataTemplate>
-        </ListBox.ItemTemplate>
-    </ListBox>
+    <StackPanel>
+        <Button Content="Експортувати" Command="{Binding ExportCommand}" Margin="5" HorizontalAlignment="Left"/>
+        <ListBox ItemsSource="{Binding SortedHistory}">
+            <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="model:ViewingHistoryRecord">
+                    <TextBlock>
+                        <TextBlock.Text>
+                            <!-- Форматування рядка: ID, Назва, Дата, Статус -->
+                            <MultiBinding StringFormat="ID: {0} | Назва: {1} | Дата: {2:g} | Статус: {3}">
+                                <Binding Path="RecordId"/>
+                                <Binding Path="FileName"/>
+                                <Binding Path="ViewDate"/>
+                                <Binding Path="Status"/>
+                            </MultiBinding>
+                        </TextBlock.Text>
+                    </TextBlock>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+    </StackPanel>
 </Window>
