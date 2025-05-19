@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Xml.Serialization;
@@ -22,13 +23,18 @@ namespace MediaVault.Models
     [XmlRoot("ViewingHistoryLog")]
     public class ViewingHistoryLog
     {
-        private static readonly string FilePath = "history.xml";
+        private static readonly string DataDirectory = "Data";
+        private static readonly string FilePath = Path.Combine(DataDirectory, "history.xml");
 
         [XmlElement("Record")]
-        public List<ViewingHistoryRecord> Records { get; set; } = new List<ViewingHistoryRecord>();
+        public ObservableCollection<ViewingHistoryRecord> Records { get; set; } = new ObservableCollection<ViewingHistoryRecord>();
 
         public static ViewingHistoryLog Load()
         {
+            // Ensure Data directory exists
+            if (!Directory.Exists(DataDirectory))
+                Directory.CreateDirectory(DataDirectory);
+
             if (!File.Exists(FilePath))
             {
                 var log = new ViewingHistoryLog();
@@ -50,10 +56,9 @@ namespace MediaVault.Models
 
         public void Save()
         {
-            // Ensure directory exists if FilePath contains directories
-            var dir = Path.GetDirectoryName(FilePath);
-            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
-                Directory.CreateDirectory(dir);
+            // Ensure Data directory exists
+            if (!Directory.Exists(DataDirectory))
+                Directory.CreateDirectory(DataDirectory);
 
             using var stream = File.Create(FilePath);
             var serializer = new XmlSerializer(typeof(ViewingHistoryLog));

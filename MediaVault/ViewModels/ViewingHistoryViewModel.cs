@@ -7,7 +7,19 @@ namespace MediaVault.ViewModels
 {
     public class ViewingHistoryViewModel : INotifyPropertyChanged
     {
-        public ObservableCollection<ViewingHistoryRecord> SortedHistory { get; }
+        private ObservableCollection<ViewingHistoryRecord> _sortedHistory;
+        public ObservableCollection<ViewingHistoryRecord> SortedHistory
+        {
+            get => _sortedHistory;
+            set
+            {
+                if (_sortedHistory != value)
+                {
+                    _sortedHistory = value;
+                    OnPropertyChanged(nameof(SortedHistory));
+                }
+            }
+        }
 
         public ViewingHistoryViewModel()
         {

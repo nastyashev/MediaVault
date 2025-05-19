@@ -8,12 +8,13 @@ namespace MediaVault.Views
 {
     public partial class ViewingHistoryWindow : Window
     {
-        public ObservableCollection<ViewingHistoryRecord> HistoryRecords { get; } = new();
+        //public ObservableCollection<ViewingHistoryRecord> HistoryRecords { get; }
 
         public ViewingHistoryWindow()
         {
             InitializeComponent();
-            DataContext = new ViewingHistoryLog();
+            DataContext = new ViewingHistoryViewModel();
         }
+        
     }
 }
