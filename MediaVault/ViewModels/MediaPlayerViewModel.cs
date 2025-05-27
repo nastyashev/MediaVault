@@ -130,6 +130,14 @@ namespace MediaVault.ViewModels
 
             MediaPlayer.Volume = _volume;
             _mediaFile = mediaFile;
+            Title = mediaFile?.Title ?? System.IO.Path.GetFileNameWithoutExtension(mediaFile?.FilePath);
+        }
+
+        private string _title;
+        public string Title
+        {
+            get => _title;
+            set => SetProperty(ref _title, value);
         }
 
         // Додаємо допоміжний метод:

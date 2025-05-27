@@ -9,28 +9,39 @@
         x:DataType="local:MediaPlayerViewModel"
         Title="MediaPlayerWindow">
 
-	<Grid RowDefinitions="*,Auto">
-		<vlc:VideoView Name="VideoView" Grid.Row="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
-		<StackPanel Grid.Row="1" Orientation="Vertical" HorizontalAlignment="Stretch" Margin="10">
-			<Slider
-                                Minimum="0"
-                                Maximum="{Binding Duration}"
-                                Value="{Binding Position, Mode=TwoWay}"
-                                IsEnabled="{Binding IsSeekable}"
-                                Margin="10,0,10,0"
-                                VerticalAlignment="Center"/>
-			<Slider
-                                Minimum="0"
-                                Maximum="100"
-                                Value="{Binding Volume, Mode=TwoWay}"
-                                Margin="10,5,10,0"
-                                VerticalAlignment="Center"
-                                ToolTip.Tip="Гучність"/>
-			<TextBlock Text="{Binding Volume}" HorizontalAlignment="Center" Margin="0,0,0,5"/>
-			<StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-				<Button Content="Play" Command="{Binding PlayCommand}" Margin="5"/>
-				<Button Content="Pause" Command="{Binding PauseCommand}" Margin="5"/>
-			</StackPanel>
-		</StackPanel>
-	</Grid>
+    <Grid RowDefinitions="*,Auto">
+        <vlc:VideoView Name="VideoView" Grid.Row="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+        <StackPanel Grid.Row="1" Orientation="Vertical" HorizontalAlignment="Stretch" Margin="10">
+            <Slider Minimum="0"
+                    Maximum="{Binding Duration}"
+                    Value="{Binding Position, Mode=TwoWay}"
+                    IsEnabled="{Binding IsSeekable}"
+                    Margin="10,0,10,0"
+                    VerticalAlignment="Center"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Stretch" Margin="0,5,0,0">
+                <TextBlock Text="{Binding Title}" VerticalAlignment="Center" Margin="0,0,10,0" />
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Spacing="5">
+                    <Slider
+                        Minimum="0"
+                        Maximum="100"
+                        Value="{Binding Volume, Mode=TwoWay}"
+                        Width="100"
+                        VerticalAlignment="Center"
+                        ToolTip.Tip="Гучність"/>
+                    <TextBlock Text="{Binding Volume}" VerticalAlignment="Center"/>
+                </StackPanel>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <Button Command="{Binding PlayCommand}" Margin="5">
+                    <Path Width="16" Height="16" Stretch="Uniform" Fill="Black" Data="M2,2 L14,8 L2,14 Z"/>
+                </Button>
+                <Button Command="{Binding PauseCommand}" Margin="5">
+                    <StackPanel Orientation="Horizontal" Spacing="2">
+                        <Rectangle Width="4" Height="16" Fill="Black"/>
+                        <Rectangle Width="4" Height="16" Fill="Black"/>
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </StackPanel>
+    </Grid>
 </Window>
