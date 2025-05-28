@@ -21,6 +21,20 @@ namespace MediaVault.ViewModels
         public ICommand StopCommand { get; }
         public ICommand ToggleFullScreenCommand { get; }
 
+        private bool _isFullScreen;
+        public bool IsFullScreen
+        {
+            get => _isFullScreen;
+            set => SetProperty(ref _isFullScreen, value);
+        }
+
+        private bool _controlsVisible = true;
+        public bool ControlsVisible
+        {
+            get => _controlsVisible;
+            set => SetProperty(ref _controlsVisible, value);
+        }
+
         private double _position;
         private bool _isSeeking = false;
         private double _lastSetPosition = 0;
@@ -34,6 +48,7 @@ namespace MediaVault.ViewModels
                 {
                     _position = value;
                     OnPropertyChanged(nameof(Position));
+                    OnPropertyChanged(nameof(PositionString));
                     if (MediaPlayer != null && Duration > 0 && Math.Abs(MediaPlayer.Position * Duration - value) > 1)
                     {
                         _isSeeking = true;
@@ -43,6 +58,20 @@ namespace MediaVault.ViewModels
                     }
                 }
             }
+        }
+
+        public string PositionString => FormatTime(Position);
+        public string DurationString => FormatTime(Duration);
+
+        private string FormatTime(double seconds)
+        {
+            if (double.IsNaN(seconds) || seconds < 0.5)
+                return "00:00";
+            var ts = TimeSpan.FromSeconds(seconds);
+            if (ts.TotalHours >= 1)
+                return ts.ToString(@"hh\:mm\:ss");
+            else
+                return ts.ToString(@"mm\:ss");
         }
 
         public double Duration => MediaPlayer?.Media?.Duration / 1000.0 ?? 0;
@@ -86,7 +115,11 @@ namespace MediaVault.ViewModels
 
             PlayCommand = new RelayCommand(_ => Play());
             PauseCommand = new RelayCommand(_ => Pause());
-            ToggleFullScreenCommand = new RelayCommand(_ => toggleFullScreenAction?.Invoke());
+            ToggleFullScreenCommand = new RelayCommand(_ =>
+            {
+                toggleFullScreenAction?.Invoke();
+                IsFullScreen = !IsFullScreen;
+            });
 
             Task.Run(async () =>
             {
@@ -106,7 +139,7 @@ namespace MediaVault.ViewModels
                 {
                     _position = MediaPlayer.Position * Duration;
                     OnPropertyChanged(nameof(Position));
-
+                    OnPropertyChanged(nameof(PositionString));
                     // --- Позначення як переглянутого при 95% ---
                     if (!_mediaFile.IsWatched && MediaPlayer.Position >= 0.95f)
                     {
@@ -118,6 +151,7 @@ namespace MediaVault.ViewModels
             MediaPlayer.LengthChanged += (s, e) =>
             {
                 OnPropertyChanged(nameof(Duration));
+                OnPropertyChanged(nameof(DurationString));
                 UpdateIsSeekable();
             };
             MediaPlayer.MediaChanged += (s, e) =>
@@ -128,6 +162,7 @@ namespace MediaVault.ViewModels
             {
                 Avalonia.Threading.Dispatcher.UIThread.Post(UpdateIsSeekable);
                 OnPropertyChanged(nameof(Duration));
+                OnPropertyChanged(nameof(DurationString));
             };
 
             MediaPlayer.Volume = _volume;
