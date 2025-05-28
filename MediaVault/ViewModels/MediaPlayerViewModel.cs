@@ -19,6 +19,7 @@ namespace MediaVault.ViewModels
         public ICommand PlayCommand { get; }
         public ICommand PauseCommand { get; }
         public ICommand StopCommand { get; }
+        public ICommand ToggleFullScreenCommand { get; }
 
         private double _position;
         private bool _isSeeking = false;
@@ -73,7 +74,7 @@ namespace MediaVault.ViewModels
         private int _currentRecordId = 0;
 
         // Оновлюйте позицію під час відтворення
-        public MediaPlayerViewModel(MediaFile mediaFile)
+        public MediaPlayerViewModel(MediaFile mediaFile, Action? toggleFullScreenAction = null)
         {
             Core.Initialize();
             _libVLC = new LibVLC(new[] { "--no-video-title-show", "--avcodec-hw=none" });
@@ -85,6 +86,7 @@ namespace MediaVault.ViewModels
 
             PlayCommand = new RelayCommand(_ => Play());
             PauseCommand = new RelayCommand(_ => Pause());
+            ToggleFullScreenCommand = new RelayCommand(_ => toggleFullScreenAction?.Invoke());
 
             Task.Run(async () =>
             {

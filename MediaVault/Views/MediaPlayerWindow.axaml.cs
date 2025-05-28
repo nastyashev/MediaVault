@@ -18,10 +18,18 @@ public partial class MediaPlayerWindow : Window
     public MediaPlayerWindow(MediaFile mediaFile)
     {
         InitializeComponent();
-        DataContext = new MediaPlayerViewModel(mediaFile);
+        DataContext = new MediaPlayerViewModel(mediaFile, ToggleFullScreen);
 
         this.Opened += MediaPlayerWindow_Opened;
         this.Closing += MediaPlayerWindow_Closing;
+    }
+
+    private void ToggleFullScreen()
+    {
+        if (WindowState == WindowState.FullScreen)
+            WindowState = WindowState.Normal;
+        else
+            WindowState = WindowState.FullScreen;
     }
 
     private void MediaPlayerWindow_Opened(object? sender, EventArgs e)

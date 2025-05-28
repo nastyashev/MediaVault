@@ -46,6 +46,7 @@
                     VerticalAlignment="Center"
                     Orientation="Horizontal"
                     Spacing="5">
+                    <TextBlock VerticalAlignment="Center" Text="{Binding Volume}" />
                     <Slider
                         Width="100"
                         VerticalAlignment="Center"
@@ -53,7 +54,6 @@
                         Minimum="0"
                         ToolTip.Tip="Гучність"
                         Value="{Binding Volume, Mode=TwoWay}" />
-                    <TextBlock VerticalAlignment="Center" Text="{Binding Volume}" />
                 </StackPanel>
                 <StackPanel
                     Grid.Column="1"
@@ -80,6 +80,17 @@
                                 Height="16"
                                 Fill="Black" />
                         </StackPanel>
+                    </Button>
+                    <Button
+                        Margin="5,0,0,0"
+                        Command="{Binding ToggleFullScreenCommand}"
+                        ToolTip.Tip="На весь екран">
+                        <Path
+                            Width="16"
+                            Height="16"
+                            Data="M2,6 L2,2 L6,2 M10,2 L14,2 L14,6 M14,10 L14,14 L10,14 M6,14 L2,14 L2,10"
+                            Fill="Black"
+                            Stretch="Uniform" />
                     </Button>
                 </StackPanel>
             </Grid>
