@@ -1,67 +1,106 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:vm="clr-namespace:MediaVault.ViewModels"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-		xmlns:local="clr-namespace:MediaVault.Views.Converters"
-        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-        x:Class="MediaVault.Views.MainWindow"
-        x:DataType="vm:MainWindowViewModel"
-        Icon="/Assets/avalonia-logo.ico"
-        Title="MediaVault">
+<Window
+	x:Class="MediaVault.Views.MainWindow"
+	xmlns="https://github.com/avaloniaui"
+	xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+	xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+	xmlns:local="clr-namespace:MediaVault.Views.Converters"
+	xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+	xmlns:vm="clr-namespace:MediaVault.ViewModels"
+	Title="MediaVault"
+	d:DesignHeight="450"
+	d:DesignWidth="800"
+	x:DataType="vm:MainWindowViewModel"
+	Icon="/Assets/avalonia-logo.ico"
+	mc:Ignorable="d">
 
 	<Design.DataContext>
-		<vm:MainWindowViewModel/>
+		<vm:MainWindowViewModel />
 	</Design.DataContext>
 
 	<Window.Resources>
-        <local:UrlToBitmapConverter x:Key="UrlToBitmapConverter"/>
-    </Window.Resources>
+		<local:UrlToBitmapConverter x:Key="UrlToBitmapConverter" />
+	</Window.Resources>
 
 	<DockPanel>
 		<StackPanel DockPanel.Dock="Top">
 			<!-- <Button Content="Налаштування" Command="{Binding SettingsCommand}" Margin="0,0,5,0"/> -->
-			<Button Content="Обрати директорію" Command="{Binding ScanDirectoryCommand}" Margin="10,10,10,10"/>
-			<Button Content="Історія перегляду" Click="OnViewingHistoryClick" Margin="10,10,10,10"/>
+			<Button
+				Margin="10,10,10,10"
+				Command="{Binding ScanDirectoryCommand}"
+				Content="Обрати директорію" />
+			<Button
+				Margin="10,10,10,10"
+				Click="OnViewingHistoryClick"
+				Content="Історія перегляду" />
 			<!-- <TextBox x:Name="SearchBox" Width="200" VerticalAlignment="Center" /> -->
 			<!-- <Button Content="Search" Command="{Binding SearchCommand}"/> -->
-			<ToggleButton Content="Список" IsChecked="{Binding IsListView}" Margin="10,5,10,5"/>
-			<ToggleButton Content="Галерея" IsChecked="{Binding IsGalleryView}" Margin="10,0,10,5"/>
+			<ToggleButton
+				Margin="10,5,10,5"
+				Content="Список"
+				IsChecked="{Binding IsListView}" />
+			<ToggleButton
+				Margin="10,0,10,5"
+				Content="Галерея"
+				IsChecked="{Binding IsGalleryView}" />
+			<ComboBox
+				Width="200"
+				Margin="10,0,10,10"
+				HorizontalAlignment="Left"
+				ItemsSource="{Binding AvailableGenres}"
+				SelectedItem="{Binding SelectedGenre}" />
+			<ComboBox
+				Width="200"
+				Margin="10,0,10,10"
+				HorizontalAlignment="Left"
+				ItemsSource="{Binding SortOptions}"
+				SelectedItem="{Binding SelectedSortOption}" />
+			<TextBox
+				Width="200"
+				Margin="10,0,10,10"
+				HorizontalAlignment="Left"
+				Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+				Watermark="Пошук..." />
 		</StackPanel>
 
 		<!-- <StackPanel Width="200" DockPanel.Dock="Left">
 			<TextBlock Text="Categories" FontWeight="Bold" Margin="5"/>
 			<ListBox ItemsSource="{Binding Categories}"/>
-		</StackPanel> -->
+		</StackPanel>-->
 
 		<ScrollViewer>
 			<Panel>
-				<!-- Список -->
-				<ListBox Name="MediaListBox"
-                         ItemsSource="{Binding MediaFiles}"
-                         SelectedItem="{Binding SelectedMediaFile, Mode=TwoWay}"
-                         DoubleTapped="OnMediaItemDoubleTapped"
-                         IsVisible="{Binding IsListView}">
+				<!--  Список  -->
+				<ListBox
+					Name="MediaListBox"
+					DoubleTapped="OnMediaItemDoubleTapped"
+					IsVisible="{Binding IsListView}"
+					ItemsSource="{Binding MediaFiles}"
+					SelectedItem="{Binding SelectedMediaFile, Mode=TwoWay}">
 					<ListBox.ItemTemplate>
 						<DataTemplate>
-							<StackPanel Orientation="Horizontal" Margin="5">
-								<Image Source="{Binding CoverImagePath}" Width="48" Height="48" Margin="0,0,10,0"/>
+							<StackPanel Margin="5" Orientation="Horizontal">
+								<Image
+									Width="48"
+									Height="48"
+									Margin="0,0,10,0"
+									Source="{Binding CoverImagePath}" />
 								<StackPanel>
-									<TextBlock Text="{Binding Title}" FontWeight="Bold"/>
-									<TextBlock Text="{Binding Genre}" FontSize="12"/>
-									<TextBlock Text="{Binding ReleaseYear}" FontSize="12"/>
+									<TextBlock FontWeight="Bold" Text="{Binding Title}" />
+									<TextBlock FontSize="12" Text="{Binding Genre}" />
+									<TextBlock FontSize="12" Text="{Binding ReleaseYear}" />
 								</StackPanel>
 							</StackPanel>
 						</DataTemplate>
 					</ListBox.ItemTemplate>
 				</ListBox>
 
-				<!-- Галерея (тепер це ListBox для підтримки вибору) -->
-				<ListBox Name="MediaGallery"
-                         ItemsSource="{Binding MediaFiles}"
-                         SelectedItem="{Binding SelectedMediaFile, Mode=TwoWay}"
-                         DoubleTapped="OnMediaItemDoubleTapped"
-                         IsVisible="{Binding IsGalleryView}">
+				<!--  Галерея (тепер це ListBox для підтримки вибору)  -->
+				<ListBox
+					Name="MediaGallery"
+					DoubleTapped="OnMediaItemDoubleTapped"
+					IsVisible="{Binding IsGalleryView}"
+					ItemsSource="{Binding MediaFiles}"
+					SelectedItem="{Binding SelectedMediaFile, Mode=TwoWay}">
 					<ListBox.ItemsPanel>
 						<ItemsPanelTemplate>
 							<WrapPanel Orientation="Horizontal" />
@@ -69,13 +108,26 @@
 					</ListBox.ItemsPanel>
 					<ListBox.ItemTemplate>
 						<DataTemplate>
-							<StackPanel Margin="10" Width="200">
+							<StackPanel Width="200" Margin="10">
 								<Border BorderBrush="Gray" BorderThickness="1">
-									<Image Width="180" Height="260" Stretch="UniformToFill" Source="{Binding CoverImagePath, Converter={StaticResource UrlToBitmapConverter}}"/>
+									<Image
+										Width="180"
+										Height="260"
+										Source="{Binding CoverImagePath, Converter={StaticResource UrlToBitmapConverter}}"
+										Stretch="UniformToFill" />
 								</Border>
-								<TextBlock Text="{Binding Title}" HorizontalAlignment="Center" Margin="0,5,0,0"/>
-								<TextBlock Text="{Binding Genre}" HorizontalAlignment="Center" FontSize="12"/>
-								<TextBlock Text="{Binding ReleaseYear}" HorizontalAlignment="Center" FontSize="12"/>
+								<TextBlock
+									Margin="0,5,0,0"
+									HorizontalAlignment="Center"
+									Text="{Binding Title}" />
+								<TextBlock
+									HorizontalAlignment="Center"
+									FontSize="12"
+									Text="{Binding Genre}" />
+								<TextBlock
+									HorizontalAlignment="Center"
+									FontSize="12"
+									Text="{Binding ReleaseYear}" />
 							</StackPanel>
 						</DataTemplate>
 					</ListBox.ItemTemplate>

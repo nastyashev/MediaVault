@@ -11,6 +11,8 @@ using MediaVault.Models;
 using TMDbLib.Client;
 using System.Collections.Generic;
 using Avalonia.Threading;
+using TMDbLib.Objects.General;
+using TMDbLib.Objects.Movies;
 
 namespace MediaVault.ViewModels
 {
@@ -44,6 +46,9 @@ namespace MediaVault.ViewModels
             {
                 LoadLibraryAndDisplay();
             }
+
+            // Завантажити жанри з TMDb
+            LoadGenresFromTmdb();
 
             Debug.WriteLine("[MainWindowViewModel] Initialized");
         }
@@ -97,6 +102,78 @@ namespace MediaVault.ViewModels
         public ICommand ScanDirectoryCommand { get; }
         public ICommand SearchCommand { get; }
 
+        private string? _selectedGenre;
+        public ObservableCollection<string> AvailableGenres { get; } = new ObservableCollection<string> { "Всі жанри" };
+
+        public string? SelectedGenre
+        {
+            get => _selectedGenre;
+            set
+            {
+                if (_selectedGenre != value)
+                {
+                    _selectedGenre = value;
+                    OnPropertyChanged(nameof(SelectedGenre));
+                    ApplyGenreFilter();
+                }
+            }
+        }
+
+        public enum SortOption
+        {
+            None,
+            DateAddedAsc,
+            DateAddedDesc,
+            ReleaseYearAsc,
+            ReleaseYearDesc,
+            DurationAsc,
+            DurationDesc
+        }
+
+        private SortOption _selectedSortOption = SortOption.None;
+        public ObservableCollection<string> SortOptions { get; } = new ObservableCollection<string>
+        {
+            "Без сортування",
+            "Дата додавання ↑",
+            "Дата додавання ↓",
+            "Рік релізу ↑",
+            "Рік релізу ↓",
+            "Тривалість ↑",
+            "Тривалість ↓"
+        };
+
+        public string SelectedSortOption
+        {
+            get => SortOptions[(int)_selectedSortOption];
+            set
+            {
+                var idx = SortOptions.IndexOf(value);
+                if (idx >= 0 && _selectedSortOption != (SortOption)idx)
+                {
+                    _selectedSortOption = (SortOption)idx;
+                    OnPropertyChanged(nameof(SelectedSortOption));
+                    ApplySortAndFilter();
+                }
+            }
+        }
+
+        private string? _searchText;
+        public string? SearchText
+        {
+            get => _searchText;
+            set
+            {
+                if (_searchText != value)
+                {
+                    _searchText = value;
+                    OnPropertyChanged(nameof(SearchText));
+                    ApplySortAndFilter();
+                }
+            }
+        }
+
+        private List<MediaFile> _allMediaFiles = new List<MediaFile>();
+
         public async Task ScanDirectory(string path)
         {
             if (Directory.Exists(path))
@@ -108,6 +185,7 @@ namespace MediaVault.ViewModels
                 var libraryEntries = new List<LibraryEntry>();
 
                 MediaFiles.Clear();
+                _allMediaFiles.Clear();
 
                 var updateTasks = new List<Task>();
 
@@ -119,15 +197,20 @@ namespace MediaVault.ViewModels
                     {
                         Dispatcher.UIThread.Post(() =>
                         {
+                            // Додаємо дату додавання та тривалість (якщо можливо)
+                            mediaFile.AddedDate = DateTime.Now;
+                            // mediaFile.Duration = ... // тут можна додати визначення тривалості, якщо реалізовано
+
                             MediaFiles.Add(mediaFile);
+                            _allMediaFiles.Add(mediaFile);
 
                             var entry = new LibraryEntry
                             {
                                 file_id = file,
                                 title = mediaFile.Title,
                                 genre = mediaFile.Genre,
-                                added_date = DateTime.Now,
-                                metadata = $"ReleaseYear: {mediaFile.ReleaseYear}, Cover: {mediaFile.CoverImagePath}"
+                                added_date = mediaFile.AddedDate,
+                                metadata = $"ReleaseYear: {mediaFile.ReleaseYear}, Cover: {mediaFile.CoverImagePath}, Duration: {mediaFile.Duration}"
                             };
                             libraryEntries.Add(entry);
                         });
@@ -138,6 +221,7 @@ namespace MediaVault.ViewModels
                 await Task.WhenAll(updateTasks);
 
                 SaveLibraryToXml(libraryEntries, LibraryFilePath);
+                ApplySortAndFilter();
             }
         }
 
@@ -217,12 +301,12 @@ namespace MediaVault.ViewModels
             }
         }
 
-        private MediaType GetMediaType(string filePath)
+        private MediaVault.Models.MediaType GetMediaType(string filePath)
         {
             var ext = Path.GetExtension(filePath).ToLowerInvariant();
             if (ext == ".mp4" || ext == ".avi" || ext == ".mkv" || ext == ".mov")
-                return MediaType.Video;
-            return MediaType.Audio;
+                return MediaVault.Models.MediaType.Video;
+            return MediaVault.Models.MediaType.Audio;
         }
 
         // Змініть сигнатуру і додайте логування
@@ -302,14 +386,91 @@ namespace MediaVault.ViewModels
             public string metadata { get; set; }
         }
 
+        private async void LoadGenresFromTmdb()
+        {
+            try
+            {
+                var genres = await _tmdbClient.GetMovieGenresAsync();
+                Dispatcher.UIThread.Post(() =>
+                {
+                    AvailableGenres.Clear();
+                    AvailableGenres.Add("Всі жанри");
+                    foreach (var genre in genres)
+                    {
+                        AvailableGenres.Add(genre.Name);
+                    }
+                    SelectedGenre = "Всі жанри";
+                });
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Не вдалося завантажити жанри TMDb: {ex.Message}");
+            }
+        }
+
+        private void ApplySortAndFilter()
+        {
+            IEnumerable<MediaFile> filtered = _allMediaFiles;
+
+            // Фільтрація за жанром
+            if (!string.IsNullOrEmpty(SelectedGenre) && SelectedGenre != "Всі жанри")
+            {
+                filtered = filtered.Where(m => m.Genre != null && m.Genre.Split(',').Select(g => g.Trim()).Contains(SelectedGenre));
+            }
+
+            // Фільтрація за пошуком
+            if (!string.IsNullOrWhiteSpace(SearchText))
+            {
+                filtered = filtered.Where(m => m.Title != null && m.Title.Contains(SearchText, StringComparison.OrdinalIgnoreCase));
+            }
+
+            // Сортування
+            switch (_selectedSortOption)
+            {
+                case SortOption.DateAddedAsc:
+                    filtered = filtered.OrderBy(m => m.AddedDate);
+                    break;
+                case SortOption.DateAddedDesc:
+                    filtered = filtered.OrderByDescending(m => m.AddedDate);
+                    break;
+                case SortOption.ReleaseYearAsc:
+                    filtered = filtered.OrderBy(m => m.ReleaseYear);
+                    break;
+                case SortOption.ReleaseYearDesc:
+                    filtered = filtered.OrderByDescending(m => m.ReleaseYear);
+                    break;
+                case SortOption.DurationAsc:
+                    filtered = filtered.OrderBy(m => m.Duration);
+                    break;
+                case SortOption.DurationDesc:
+                    filtered = filtered.OrderByDescending(m => m.Duration);
+                    break;
+                default:
+                    break;
+            }
+
+            MediaFiles.Clear();
+            foreach (var file in filtered)
+                MediaFiles.Add(file);
+        }
+
+        private void ApplyGenreFilter()
+        {
+            ApplySortAndFilter();
+        }
+
         public void LoadLibraryAndDisplay()
         {
             MediaFiles.Clear();
+            _allMediaFiles.Clear();
             var entries = LoadLibraryFromXml(LibraryFilePath);
             foreach (var entry in entries)
             {
-                MediaFiles.Add(LibraryEntryToMediaFile(entry));
+                var mf = LibraryEntryToMediaFile(entry);
+                MediaFiles.Add(mf);
+                _allMediaFiles.Add(mf);
             }
+            ApplySortAndFilter();
         }
 
         private MediaFile LibraryEntryToMediaFile(LibraryEntry entry)
@@ -318,9 +479,10 @@ namespace MediaVault.ViewModels
             var mediaFile = new MediaFile(entry.title, entry.file_id, mediaType)
             {
                 Genre = entry.genre,
-                // metadata: ReleaseYear, Cover
                 ReleaseYear = ParseReleaseYearFromMetadata(entry.metadata),
-                CoverImagePath = ParseCoverFromMetadata(entry.metadata)
+                CoverImagePath = ParseCoverFromMetadata(entry.metadata),
+                AddedDate = entry.added_date,
+                Duration = ParseDurationFromMetadata(entry.metadata)
             };
             return mediaFile;
         }
@@ -356,6 +518,23 @@ namespace MediaVault.ViewModels
                 }
             }
             return string.Empty;
+        }
+
+        private static TimeSpan ParseDurationFromMetadata(string metadata)
+        {
+            if (string.IsNullOrEmpty(metadata)) return TimeSpan.Zero;
+            var parts = metadata.Split(',');
+            foreach (var part in parts)
+            {
+                var trimmed = part.Trim();
+                if (trimmed.StartsWith("Duration:"))
+                {
+                    var val = trimmed.Substring("Duration:".Length).Trim();
+                    if (TimeSpan.TryParse(val, out var ts))
+                        return ts;
+                }
+            }
+            return TimeSpan.Zero;
         }
     }
 }

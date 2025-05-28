@@ -20,6 +20,7 @@ namespace MediaVault.Models
         public int ReleaseYear { get; set; }
         public string UserNotes { get; set; }
         public string CoverImagePath { get; set; }
+        public DateTime AddedDate { get; set; }
 
         public MediaFile(string title, string filePath, MediaType type)
         {
@@ -35,6 +36,7 @@ namespace MediaVault.Models
             ReleaseYear = 0;
             UserNotes = string.Empty;
             CoverImagePath = string.Empty;
+            AddedDate = DateTime.Now;
         }
     }
 
