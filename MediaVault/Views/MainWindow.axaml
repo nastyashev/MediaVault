@@ -22,45 +22,89 @@
 	</Window.Resources>
 
 	<DockPanel>
-		<StackPanel DockPanel.Dock="Top">
-			<!-- <Button Content="Налаштування" Command="{Binding SettingsCommand}" Margin="0,0,5,0"/> -->
-			<Button
-				Margin="10,10,10,10"
-				Command="{Binding ScanDirectoryCommand}"
-				Content="Обрати директорію" />
-			<Button
-				Margin="10,10,10,10"
-				Click="OnViewingHistoryClick"
-				Content="Історія перегляду" />
-			<!-- <TextBox x:Name="SearchBox" Width="200" VerticalAlignment="Center" /> -->
-			<!-- <Button Content="Search" Command="{Binding SearchCommand}"/> -->
-			<ToggleButton
-				Margin="10,5,10,5"
-				Content="Список"
-				IsChecked="{Binding IsListView}" />
-			<ToggleButton
-				Margin="10,0,10,5"
-				Content="Галерея"
-				IsChecked="{Binding IsGalleryView}" />
-			<ComboBox
-				Width="200"
-				Margin="10,0,10,10"
-				HorizontalAlignment="Left"
-				ItemsSource="{Binding AvailableGenres}"
-				SelectedItem="{Binding SelectedGenre}" />
-			<ComboBox
-				Width="200"
-				Margin="10,0,10,10"
-				HorizontalAlignment="Left"
-				ItemsSource="{Binding SortOptions}"
-				SelectedItem="{Binding SelectedSortOption}" />
-			<TextBox
-				Width="200"
-				Margin="10,0,10,10"
-				HorizontalAlignment="Left"
-				Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
-				Watermark="Пошук..." />
-		</StackPanel>
+		<Border
+			Padding="0,0,0,8"
+			Background="{DynamicResource ThemeControlLowBrush}"
+			BorderBrush="{DynamicResource ThemeDividerBrush}"
+			BorderThickness="0,0,0,1"
+			DockPanel.Dock="Top">
+			<Grid VerticalAlignment="Center" ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto,Auto">
+				<Button
+					Grid.Column="0"
+					Width="36"
+					Height="36"
+					Margin="10,10,5,10"
+					Background="{DynamicResource ThemeControlMidBrush}"
+					BorderBrush="{DynamicResource ThemeDividerBrush}"
+					BorderThickness="1"
+					Command="{Binding ScanDirectoryCommand}"
+					Content="📂"
+					ToolTip.Tip="Обрати директорію" />
+				<Button
+					Grid.Column="1"
+					Width="36"
+					Height="36"
+					Margin="0,10,10,10"
+					Background="{DynamicResource ThemeControlMidBrush}"
+					BorderBrush="{DynamicResource ThemeDividerBrush}"
+					BorderThickness="1"
+					Click="OnViewingHistoryClick"
+					Content="🕑"
+					ToolTip.Tip="Історія перегляду" />
+				<StackPanel
+					Grid.Column="2"
+					VerticalAlignment="Center"
+					Orientation="Horizontal"
+					Spacing="8">
+					<TextBox
+						Width="200"
+						Height="36"
+						Margin="0,0,0,0"
+						VerticalAlignment="Center"
+						Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+						ToolTip.Tip="Пошук за назвою"
+						Watermark="Пошук..." />
+					<ComboBox
+						Width="160"
+						Height="36"
+						ItemsSource="{Binding AvailableGenres}"
+						SelectedItem="{Binding SelectedGenre}"
+						ToolTip.Tip="Фільтр за жанром" />
+					<ComboBox
+						Width="160"
+						Height="36"
+						ItemsSource="{Binding SortOptions}"
+						SelectedItem="{Binding SelectedSortOption}"
+						ToolTip.Tip="Сортування" />
+				</StackPanel>
+				<StackPanel
+					Grid.Column="3"
+					Margin="10,0,10,0"
+					VerticalAlignment="Center"
+					Orientation="Horizontal"
+					Spacing="0">
+					<ToggleButton
+						Width="36"
+						Height="36"
+						Margin="0,0,5,0"
+						Background="{DynamicResource ThemeControlMidBrush}"
+						BorderBrush="{DynamicResource ThemeDividerBrush}"
+						BorderThickness="1"
+						Content="📋"
+						IsChecked="{Binding IsListView}"
+						ToolTip.Tip="Список" />
+					<ToggleButton
+						Width="36"
+						Height="36"
+						Background="{DynamicResource ThemeControlMidBrush}"
+						BorderBrush="{DynamicResource ThemeDividerBrush}"
+						BorderThickness="1"
+						Content="🖼️"
+						IsChecked="{Binding IsGalleryView}"
+						ToolTip.Tip="Галерея" />
+				</StackPanel>
+			</Grid>
+		</Border>
 
 		<!-- <StackPanel Width="200" DockPanel.Dock="Left">
 			<TextBlock Text="Categories" FontWeight="Bold" Margin="5"/>
