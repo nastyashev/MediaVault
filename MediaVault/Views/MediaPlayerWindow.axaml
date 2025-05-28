@@ -1,47 +1,88 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:vlc="clr-namespace:LibVLCSharp.Avalonia;assembly=LibVLCSharp.Avalonia"
-        xmlns:local="clr-namespace:MediaVault.ViewModels"
-        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-        x:Class="MediaVault.MediaPlayerWindow"
-        x:DataType="local:MediaPlayerViewModel"
-        Title="MediaPlayerWindow">
+<Window
+    x:Class="MediaVault.MediaPlayerWindow"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="clr-namespace:MediaVault.ViewModels"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:vlc="clr-namespace:LibVLCSharp.Avalonia;assembly=LibVLCSharp.Avalonia"
+    Title="MediaPlayerWindow"
+    d:DesignHeight="450"
+    d:DesignWidth="800"
+    x:DataType="local:MediaPlayerViewModel"
+    mc:Ignorable="d">
 
     <Grid RowDefinitions="*,Auto">
-        <vlc:VideoView Name="VideoView" Grid.Row="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
-        <StackPanel Grid.Row="1" Orientation="Vertical" HorizontalAlignment="Stretch" Margin="10">
-            <Slider Minimum="0"
-                    Maximum="{Binding Duration}"
-                    Value="{Binding Position, Mode=TwoWay}"
-                    IsEnabled="{Binding IsSeekable}"
-                    Margin="10,0,10,0"
-                    VerticalAlignment="Center"/>
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Stretch" Margin="0,5,0,0">
-                <TextBlock Text="{Binding Title}" VerticalAlignment="Center" Margin="0,0,10,0" />
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Spacing="5">
+        <vlc:VideoView
+            Name="VideoView"
+            Grid.Row="0"
+            HorizontalAlignment="Stretch"
+            VerticalAlignment="Stretch" />
+        <StackPanel
+            Grid.Row="1"
+            Margin="10"
+            HorizontalAlignment="Stretch"
+            Orientation="Vertical">
+            <Slider
+                Margin="10,0,10,0"
+                VerticalAlignment="Center"
+                IsEnabled="{Binding IsSeekable}"
+                Maximum="{Binding Duration}"
+                Minimum="0"
+                Value="{Binding Position, Mode=TwoWay}" />
+            <Grid
+                Margin="0,5,0,0"
+                HorizontalAlignment="Stretch"
+                ColumnDefinitions="*,Auto,*">
+                <TextBlock
+                    Grid.Column="0"
+                    Margin="0,0,10,0"
+                    VerticalAlignment="Center"
+                    Text="{Binding Title}" />
+                <StackPanel
+                    Grid.Column="2"
+                    Margin="0,0,0,0"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Center"
+                    Orientation="Horizontal"
+                    Spacing="5">
                     <Slider
-                        Minimum="0"
-                        Maximum="100"
-                        Value="{Binding Volume, Mode=TwoWay}"
                         Width="100"
                         VerticalAlignment="Center"
-                        ToolTip.Tip="Гучність"/>
-                    <TextBlock Text="{Binding Volume}" VerticalAlignment="Center"/>
+                        Maximum="100"
+                        Minimum="0"
+                        ToolTip.Tip="Гучність"
+                        Value="{Binding Volume, Mode=TwoWay}" />
+                    <TextBlock VerticalAlignment="Center" Text="{Binding Volume}" />
                 </StackPanel>
-            </StackPanel>
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                <Button Command="{Binding PlayCommand}" Margin="5">
-                    <Path Width="16" Height="16" Stretch="Uniform" Fill="Black" Data="M2,2 L14,8 L2,14 Z"/>
-                </Button>
-                <Button Command="{Binding PauseCommand}" Margin="5">
-                    <StackPanel Orientation="Horizontal" Spacing="2">
-                        <Rectangle Width="4" Height="16" Fill="Black"/>
-                        <Rectangle Width="4" Height="16" Fill="Black"/>
-                    </StackPanel>
-                </Button>
-            </StackPanel>
+                <StackPanel
+                    Grid.Column="1"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Orientation="Horizontal"
+                    Spacing="0">
+                    <Button Margin="5,0,0,0" Command="{Binding PlayCommand}">
+                        <Path
+                            Width="16"
+                            Height="16"
+                            Data="M2,2 L14,8 L2,14 Z"
+                            Fill="Black"
+                            Stretch="Uniform" />
+                    </Button>
+                    <Button Margin="5,0,0,0" Command="{Binding PauseCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="2">
+                            <Rectangle
+                                Width="4"
+                                Height="16"
+                                Fill="Black" />
+                            <Rectangle
+                                Width="4"
+                                Height="16"
+                                Fill="Black" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
         </StackPanel>
     </Grid>
 </Window>
