@@ -1,0 +1,36 @@
+<UserControl
+    x:Class="MediaVault.Views.ViewingHistoryView"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:model="clr-namespace:MediaVault.Models"
+    xmlns:vm="clr-namespace:MediaVault.ViewModels"
+    x:DataType="vm:ViewingHistoryViewModel">
+    <StackPanel>
+        <Button
+            Margin="5"
+            HorizontalAlignment="Left"
+            Command="{Binding HideHistoryCommand}"
+            Content="⬅ Назад" />
+        <Button
+            Margin="5"
+            HorizontalAlignment="Left"
+            Command="{Binding ExportCommand}"
+            Content="Експортувати" />
+        <ListBox ItemsSource="{Binding SortedHistory}">
+            <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="model:ViewingHistoryRecord">
+                    <TextBlock>
+                        <TextBlock.Text>
+                            <!--  Форматування рядка: ID, Назва, Дата  -->
+                            <MultiBinding StringFormat="ID: {0} | Назва: {1} | Дата: {2:g}">
+                                <Binding Path="RecordId" />
+                                <Binding Path="FileName" />
+                                <Binding Path="ViewDate" />
+                            </MultiBinding>
+                        </TextBlock.Text>
+                    </TextBlock>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+    </StackPanel>
+</UserControl>

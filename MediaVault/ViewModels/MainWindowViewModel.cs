@@ -13,6 +13,7 @@ using System.Collections.Generic;
 using Avalonia.Threading;
 using TMDbLib.Objects.General;
 using TMDbLib.Objects.Movies;
+using MediaVault.ViewModels; // додайте цей using, якщо потрібно
 
 namespace MediaVault.ViewModels
 {
@@ -25,6 +26,9 @@ namespace MediaVault.ViewModels
         private static readonly string LibraryDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data");
         private static readonly string LibraryFilePath = Path.Combine(LibraryDirectory, "library.xml");
 
+        // Додаємо ViewModel для історії перегляду
+        public ViewingHistoryViewModel ViewingHistoryViewModel { get; } = new ViewingHistoryViewModel();
+
         public MainWindowViewModel()
         {
             _tmdbClient = new TMDbClient("7354fcc62bb407139f5fcd0e5b62a435"); // Вставте TMDB API Key
@@ -36,6 +40,7 @@ namespace MediaVault.ViewModels
             SettingsCommand = new RelayCommand(_ => OnSettings());
             ScanDirectoryCommand = new RelayCommand(_ => OnScanDirectory());
             SearchCommand = new RelayCommand(_ => OnSearch());
+            ShowViewingHistoryCommand = new RelayCommand(_ => ShowViewingHistory());
 
             // Ensure Data directory exists
             if (!Directory.Exists(LibraryDirectory))
@@ -101,6 +106,7 @@ namespace MediaVault.ViewModels
         public ICommand SettingsCommand { get; }
         public ICommand ScanDirectoryCommand { get; }
         public ICommand SearchCommand { get; }
+        public ICommand ShowViewingHistoryCommand { get; }
 
         private string? _selectedGenre;
         public ObservableCollection<string> AvailableGenres { get; } = new ObservableCollection<string> { "Всі жанри" };
@@ -371,6 +377,16 @@ namespace MediaVault.ViewModels
         }
 
         private void OnSearch() { /* ... */ }
+
+        private void ShowViewingHistory()
+        {
+            ViewingHistoryViewModel.IsViewingHistoryVisible = true;
+        }
+
+        public void HideViewingHistory()
+        {
+            ViewingHistoryViewModel.IsViewingHistoryVisible = false;
+        }
 
         public event PropertyChangedEventHandler? PropertyChanged;
         protected void OnPropertyChanged(string propertyName) =>

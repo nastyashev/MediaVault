@@ -24,7 +24,22 @@ namespace MediaVault.ViewModels
             }
         }
 
+        private bool _isViewingHistoryVisible;
+        public bool IsViewingHistoryVisible
+        {
+            get => _isViewingHistoryVisible;
+            set
+            {
+                if (_isViewingHistoryVisible != value)
+                {
+                    _isViewingHistoryVisible = value;
+                    OnPropertyChanged(nameof(IsViewingHistoryVisible));
+                }
+            }
+        }
+
         public ICommand ExportCommand { get; }
+        public ICommand HideHistoryCommand { get; }
 
         public ViewingHistoryViewModel()
         {
@@ -72,6 +87,8 @@ namespace MediaVault.ViewModels
                     }
                 }
             });
+
+            HideHistoryCommand = new RelayCommand(_ => IsViewingHistoryVisible = false);
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

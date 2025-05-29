@@ -67,13 +67,10 @@ namespace MediaVault.Views
 
         private void OnViewingHistoryClick(object sender, Avalonia.Interactivity.RoutedEventArgs e)
         {
-            var historyWindow = new ViewingHistoryWindow
+            if (DataContext is MainWindowViewModel viewModel)
             {
-                Title = "Історія перегляду",
-                Width = 600,
-                Height = 400
-            };
-            historyWindow.ShowDialog(this);
+                viewModel.ShowViewingHistoryCommand.Execute(null);
+            }
         }
     }
 }
