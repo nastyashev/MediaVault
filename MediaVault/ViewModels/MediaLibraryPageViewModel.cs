@@ -31,6 +31,7 @@ namespace MediaVault.ViewModels
 
         // Додаємо подію для перемикання на історію перегляду
         public event EventHandler? ShowViewingHistoryRequested;
+        public event EventHandler? ShowStatisticsRequested;
 
         public MediaLibraryPageViewModel()
         {
@@ -44,6 +45,7 @@ namespace MediaVault.ViewModels
             ScanDirectoryCommand = new RelayCommand(_ => OnScanDirectory());
             SearchCommand = new RelayCommand(_ => OnSearch());
             ShowViewingHistoryCommand = new RelayCommand(_ => ShowViewingHistory());
+            ShowStatisticsCommand = new RelayCommand(_ => ShowStatistics());
 
             // Ensure Data directory exists
             if (!Directory.Exists(LibraryDirectory))
@@ -110,6 +112,7 @@ namespace MediaVault.ViewModels
         public ICommand ScanDirectoryCommand { get; }
         public ICommand SearchCommand { get; }
         public ICommand ShowViewingHistoryCommand { get; }
+        public ICommand ShowStatisticsCommand { get; }
 
         private string? _selectedGenre;
         public ObservableCollection<string> AvailableGenres { get; } = new ObservableCollection<string> { "Всі жанри" };
@@ -384,6 +387,11 @@ namespace MediaVault.ViewModels
         private void ShowViewingHistory()
         {
             ShowViewingHistoryRequested?.Invoke(this, EventArgs.Empty);
+        }
+
+        private void ShowStatistics()
+        {
+            ShowStatisticsRequested?.Invoke(this, EventArgs.Empty);
         }
 
         public void HideViewingHistory()

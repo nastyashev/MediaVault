@@ -10,22 +10,26 @@ namespace MediaVault.ViewModels
         {
             MediaLibraryPageViewModel = new MediaLibraryPageViewModel();
             ViewingHistoryViewModel = MediaLibraryPageViewModel.ViewingHistoryViewModel;
+            StatisticsPageViewModel = new StatisticsPageViewModel();
 
-            // Створюємо View і встановлюємо DataContext
             MediaLibraryPageView = new MediaLibraryPageView { DataContext = MediaLibraryPageViewModel };
             ViewingHistoryView = new ViewingHistoryView { DataContext = ViewingHistoryViewModel };
+            StatisticsPageView = new StatisticsPageView { DataContext = StatisticsPageViewModel };
 
-            // Підписка на події для перемикання сторінок
             MediaLibraryPageViewModel.ShowViewingHistoryRequested += OnShowViewingHistoryRequested;
             ViewingHistoryViewModel.BackToLibraryRequested += OnBackToLibraryRequested;
+            MediaLibraryPageViewModel.ShowStatisticsRequested += OnShowStatisticsRequested;
+            StatisticsPageViewModel.BackToLibraryRequested += OnBackToLibraryRequested;
 
             CurrentPage = MediaLibraryPageView;
         }
 
         public MediaLibraryPageViewModel MediaLibraryPageViewModel { get; }
         public ViewingHistoryViewModel ViewingHistoryViewModel { get; }
+        public StatisticsPageViewModel StatisticsPageViewModel { get; }
         public MediaLibraryPageView MediaLibraryPageView { get; }
         public ViewingHistoryView ViewingHistoryView { get; }
+        public StatisticsPageView StatisticsPageView { get; }
 
         public object CurrentPage
         {
@@ -44,6 +48,11 @@ namespace MediaVault.ViewModels
         private void OnShowViewingHistoryRequested(object? sender, EventArgs e)
         {
             CurrentPage = ViewingHistoryView;
+        }
+
+        private void OnShowStatisticsRequested(object? sender, EventArgs e)
+        {
+            CurrentPage = StatisticsPageView;
         }
 
         private void OnBackToLibraryRequested(object? sender, EventArgs e)

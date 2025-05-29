@@ -26,7 +26,7 @@
             BorderBrush="{DynamicResource ThemeDividerBrush}"
             BorderThickness="0,0,0,1"
             DockPanel.Dock="Top">
-            <Grid VerticalAlignment="Center" ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto,Auto">
+            <Grid VerticalAlignment="Center" ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto,Auto">
                 <Button
                     Grid.Column="0"
                     Width="36"
@@ -42,15 +42,26 @@
                     Grid.Column="1"
                     Width="36"
                     Height="36"
-                    Margin="0,10,10,10"
+                    Margin="0,10,5,10"
                     Background="{DynamicResource ThemeControlMidBrush}"
                     BorderBrush="{DynamicResource ThemeDividerBrush}"
                     BorderThickness="1"
                     Click="OnViewingHistoryClick"
                     Content="🕑"
                     ToolTip.Tip="Історія перегляду" />
-                <StackPanel
+                <Button
                     Grid.Column="2"
+                    Width="36"
+                    Height="36"
+                    Margin="0,10,10,10"
+                    Background="{DynamicResource ThemeControlMidBrush}"
+                    BorderBrush="{DynamicResource ThemeDividerBrush}"
+                    BorderThickness="1"
+                    Command="{Binding ShowStatisticsCommand}"
+                    Content="📊"
+                    ToolTip.Tip="Статистика" />
+                <StackPanel
+                    Grid.Column="3"
                     VerticalAlignment="Center"
                     Orientation="Horizontal"
                     Spacing="8">
@@ -76,7 +87,7 @@
                         ToolTip.Tip="Сортування" />
                 </StackPanel>
                 <StackPanel
-                    Grid.Column="3"
+                    Grid.Column="4"
                     Margin="10,0,10,0"
                     VerticalAlignment="Center"
                     Orientation="Horizontal"

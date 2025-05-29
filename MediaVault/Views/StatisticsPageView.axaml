@@ -1,0 +1,39 @@
+<UserControl
+    x:Class="MediaVault.Views.StatisticsPageView"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="clr-namespace:MediaVault.ViewModels"
+    x:DataType="vm:StatisticsPageViewModel">
+    <StackPanel>
+        <Button
+            Margin="5"
+            HorizontalAlignment="Left"
+            Command="{Binding BackCommand}"
+            Content="⬅ Назад" />
+        <TextBlock
+            Margin="10"
+            FontSize="20"
+            Text="Статистика" />
+        <!--  Тут можуть бути графіки, наприклад:  -->
+        <Border
+            Height="200"
+            Margin="10"
+            Background="#EEE"
+            CornerRadius="8">
+            <TextBlock
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Text="Графік 1 (заглушка)" />
+        </Border>
+        <Border
+            Height="200"
+            Margin="10"
+            Background="#EEE"
+            CornerRadius="8">
+            <TextBlock
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Text="Графік 2 (заглушка)" />
+        </Border>
+    </StackPanel>
+</UserControl>
