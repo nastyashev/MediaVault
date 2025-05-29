@@ -1,0 +1,184 @@
+<UserControl
+    x:Class="MediaVault.Views.MediaLibraryPageView"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="clr-namespace:MediaVault.Views.Converters"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:model="clr-namespace:MediaVault.Models"
+    xmlns:views="clr-namespace:MediaVault.Views"
+    xmlns:vm="clr-namespace:MediaVault.ViewModels"
+    d:DesignHeight="450"
+    d:DesignWidth="800"
+    x:DataType="vm:MediaLibraryPageViewModel"
+    mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <local:UrlToBitmapConverter x:Key="UrlToBitmapConverter" />
+        <local:InverseBooleanConverter x:Key="InverseBooleanConverter" />
+    </UserControl.Resources>
+
+    <DockPanel>
+        <!--  Верхня панель завжди зверху  -->
+        <Border
+            Padding="0,0,0,8"
+            Background="{DynamicResource ThemeControlLowBrush}"
+            BorderBrush="{DynamicResource ThemeDividerBrush}"
+            BorderThickness="0,0,0,1"
+            DockPanel.Dock="Top">
+            <Grid VerticalAlignment="Center" ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto,Auto">
+                <Button
+                    Grid.Column="0"
+                    Width="36"
+                    Height="36"
+                    Margin="10,10,5,10"
+                    Background="{DynamicResource ThemeControlMidBrush}"
+                    BorderBrush="{DynamicResource ThemeDividerBrush}"
+                    BorderThickness="1"
+                    Command="{Binding ScanDirectoryCommand}"
+                    Content="📂"
+                    ToolTip.Tip="Обрати директорію" />
+                <Button
+                    Grid.Column="1"
+                    Width="36"
+                    Height="36"
+                    Margin="0,10,10,10"
+                    Background="{DynamicResource ThemeControlMidBrush}"
+                    BorderBrush="{DynamicResource ThemeDividerBrush}"
+                    BorderThickness="1"
+                    Click="OnViewingHistoryClick"
+                    Content="🕑"
+                    ToolTip.Tip="Історія перегляду" />
+                <StackPanel
+                    Grid.Column="2"
+                    VerticalAlignment="Center"
+                    Orientation="Horizontal"
+                    Spacing="8">
+                    <TextBox
+                        Width="200"
+                        Height="36"
+                        Margin="0,0,0,0"
+                        VerticalAlignment="Center"
+                        Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                        ToolTip.Tip="Пошук за назвою"
+                        Watermark="Пошук..." />
+                    <ComboBox
+                        Width="160"
+                        Height="36"
+                        ItemsSource="{Binding AvailableGenres}"
+                        SelectedItem="{Binding SelectedGenre}"
+                        ToolTip.Tip="Фільтр за жанром" />
+                    <ComboBox
+                        Width="160"
+                        Height="36"
+                        ItemsSource="{Binding SortOptions}"
+                        SelectedItem="{Binding SelectedSortOption}"
+                        ToolTip.Tip="Сортування" />
+                </StackPanel>
+                <StackPanel
+                    Grid.Column="3"
+                    Margin="10,0,10,0"
+                    VerticalAlignment="Center"
+                    Orientation="Horizontal"
+                    Spacing="0">
+                    <ToggleButton
+                        Width="36"
+                        Height="36"
+                        Margin="0,0,5,0"
+                        Background="{DynamicResource ThemeControlMidBrush}"
+                        BorderBrush="{DynamicResource ThemeDividerBrush}"
+                        BorderThickness="1"
+                        Content="📋"
+                        IsChecked="{Binding IsListView}"
+                        ToolTip.Tip="Список" />
+                    <ToggleButton
+                        Width="36"
+                        Height="36"
+                        Background="{DynamicResource ThemeControlMidBrush}"
+                        BorderBrush="{DynamicResource ThemeDividerBrush}"
+                        BorderThickness="1"
+                        Content="🖼️"
+                        IsChecked="{Binding IsGalleryView}"
+                        ToolTip.Tip="Галерея" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!--  Головна сторінка  -->
+        <Panel IsVisible="{Binding ViewingHistoryViewModel.IsViewingHistoryVisible, Converter={StaticResource InverseBooleanConverter}}">
+            <ScrollViewer>
+                <Grid>
+                    <!--  Список  -->
+                    <ListBox
+                        Name="MediaListBox"
+                        DoubleTapped="OnMediaItemDoubleTapped"
+                        IsVisible="{Binding IsListView}"
+                        ItemsSource="{Binding MediaFiles}"
+                        SelectedItem="{Binding SelectedMediaFile, Mode=TwoWay}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="model:MediaFile">
+                                <StackPanel Margin="5" Orientation="Horizontal">
+                                    <Image
+                                        Width="48"
+                                        Height="48"
+                                        Margin="0,0,10,0"
+                                        Source="{Binding CoverImagePath}" />
+                                    <StackPanel>
+                                        <TextBlock FontWeight="Bold" Text="{Binding Title}" />
+                                        <TextBlock FontSize="12" Text="{Binding Genre}" />
+                                        <TextBlock FontSize="12" Text="{Binding ReleaseYear}" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <!--  Галерея (тепер це ListBox для підтримки вибору)  -->
+                    <ListBox
+                        Name="MediaGallery"
+                        DoubleTapped="OnMediaItemDoubleTapped"
+                        IsVisible="{Binding IsGalleryView}"
+                        ItemsSource="{Binding MediaFiles}"
+                        SelectedItem="{Binding SelectedMediaFile, Mode=TwoWay}">
+                        <ListBox.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ListBox.ItemsPanel>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="model:MediaFile">
+                                <StackPanel Width="200" Margin="10">
+                                    <Border
+                                        HorizontalAlignment="Stretch"
+                                        BorderBrush="Gray"
+                                        BorderThickness="1">
+                                        <Image
+                                            Width="180"
+                                            Height="260"
+                                            Source="{Binding CoverImagePath, Converter={StaticResource UrlToBitmapConverter}}"
+                                            Stretch="UniformToFill" />
+                                    </Border>
+                                    <TextBlock
+                                        Margin="0,5,0,0"
+                                        HorizontalAlignment="Center"
+                                        Text="{Binding Title}" />
+                                    <TextBlock
+                                        HorizontalAlignment="Center"
+                                        FontSize="12"
+                                        Text="{Binding Genre}" />
+                                    <TextBlock
+                                        HorizontalAlignment="Center"
+                                        FontSize="12"
+                                        Text="{Binding ReleaseYear}" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+            </ScrollViewer>
+        </Panel>
+
+        <!--  Сторінка історії перегляду  -->
+        <views:ViewingHistoryView DataContext="{Binding ViewingHistoryViewModel}" IsVisible="{Binding IsViewingHistoryVisible}" />
+    </DockPanel>
+</UserControl>

@@ -5,6 +5,7 @@ using MediaVault.Models;
 using System.Windows.Input;
 using Avalonia.Controls;
 using Avalonia;
+using System;
 
 namespace MediaVault.ViewModels
 {
@@ -40,6 +41,8 @@ namespace MediaVault.ViewModels
 
         public ICommand ExportCommand { get; }
         public ICommand HideHistoryCommand { get; }
+
+        public event EventHandler? BackToLibraryRequested;
 
         public ViewingHistoryViewModel()
         {
@@ -88,7 +91,11 @@ namespace MediaVault.ViewModels
                 }
             });
 
-            HideHistoryCommand = new RelayCommand(_ => IsViewingHistoryVisible = false);
+            HideHistoryCommand = new RelayCommand(_ =>
+            {
+                IsViewingHistoryVisible = false;
+                BackToLibraryRequested?.Invoke(this, EventArgs.Empty);
+            });
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;
