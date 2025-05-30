@@ -113,6 +113,17 @@ namespace MediaVault.ViewModels
             var media = new Media(_libVLC, uri);
             MediaPlayer.Media = media;
 
+            // --- Додаємо: зчитування останньої позиції ---
+            int resumePosition = 0;
+            var log = ViewingHistoryLog.Load();
+            var lastRecord = log.Records
+                .Where(r => r.FileId == mediaFile.FilePath && r.EndTime > 0)
+                .OrderByDescending(r => r.ViewDate)
+                .FirstOrDefault();
+            if (lastRecord != null)
+                resumePosition = lastRecord.EndTime;
+            // --- Кінець додавання ---
+
             PlayCommand = new RelayCommand(_ => Play());
             PauseCommand = new RelayCommand(_ => Pause());
             ToggleFullScreenCommand = new RelayCommand(_ =>
@@ -128,6 +139,13 @@ namespace MediaVault.ViewModels
                 {
                     OnPropertyChanged(nameof(Duration));
                     UpdateIsSeekable();
+                    // --- Додаємо: встановлення позиції ---
+                    if (resumePosition > 0 && Duration > 0)
+                    {
+                        Position = resumePosition;
+                        MediaPlayer.Position = (float)(resumePosition / Duration);
+                    }
+                    // --- Кінець додавання ---
                 });
             });
 
