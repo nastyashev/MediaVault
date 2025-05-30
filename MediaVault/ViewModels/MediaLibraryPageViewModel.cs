@@ -32,6 +32,7 @@ namespace MediaVault.ViewModels
         // Додаємо подію для перемикання на історію перегляду
         public event EventHandler? ShowViewingHistoryRequested;
         public event EventHandler? ShowStatisticsRequested;
+        public event EventHandler? ShowSettingsRequested; // додати подію
 
         public MediaLibraryPageViewModel()
         {
@@ -359,7 +360,10 @@ namespace MediaVault.ViewModels
             }
         }
 
-        private void OnSettings() { /* ... */ }
+        private void OnSettings()
+        {
+            ShowSettingsRequested?.Invoke(this, EventArgs.Empty);
+        }
 
         private async void OnScanDirectory()
         {
