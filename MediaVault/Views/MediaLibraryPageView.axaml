@@ -19,7 +19,7 @@
     </UserControl.Resources>
 
     <DockPanel>
-        <!--  Верхня панель завжди зверху  -->
+        <!--  Верхня панель  -->
         <Border
             Padding="0,0,0,8"
             Background="{DynamicResource ThemeControlLowBrush}"
@@ -116,9 +116,16 @@
         </Border>
 
         <!--  Головна сторінка  -->
-        <Panel IsVisible="{Binding ViewingHistoryViewModel.IsViewingHistoryVisible, Converter={StaticResource InverseBooleanConverter}}">
-            <ScrollViewer>
-                <Grid>
+        <Grid
+            HorizontalAlignment="Stretch"
+            VerticalAlignment="Stretch"
+            IsVisible="{Binding ViewingHistoryViewModel.IsViewingHistoryVisible, Converter={StaticResource InverseBooleanConverter}}">
+            <ScrollViewer
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Stretch"
+                HorizontalScrollBarVisibility="Auto"
+                VerticalScrollBarVisibility="Auto">
+                <Grid HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
                     <!--  Список  -->
                     <ListBox
                         Name="MediaListBox"
@@ -144,7 +151,7 @@
                         </ListBox.ItemTemplate>
                     </ListBox>
 
-                    <!--  Галерея (тепер це ListBox для підтримки вибору)  -->
+                    <!--  Галерея  -->
                     <ListBox
                         Name="MediaGallery"
                         DoubleTapped="OnMediaItemDoubleTapped"
@@ -187,9 +194,6 @@
                     </ListBox>
                 </Grid>
             </ScrollViewer>
-        </Panel>
-
-        <!--  Сторінка історії перегляду  -->
-        <views:ViewingHistoryView DataContext="{Binding ViewingHistoryViewModel}" IsVisible="{Binding IsViewingHistoryVisible}" />
+        </Grid>
     </DockPanel>
 </UserControl>
