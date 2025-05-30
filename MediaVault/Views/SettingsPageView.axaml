@@ -26,8 +26,46 @@
                     FontWeight="Bold"
                     Text="Налаштування" />
             </StackPanel>
-            <!--  Тут можна додати налаштування  -->
-            <TextBlock FontSize="16" Text="Тут будуть налаштування..." />
+            <!--  Поля налаштувань  -->
+            <StackPanel Orientation="Vertical" Spacing="12">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock
+                        Width="120"
+                        VerticalAlignment="Center"
+                        Text="Тема:" />
+                    <ComboBox
+                        Width="200"
+                        ItemsSource="{Binding Themes}"
+                        SelectedItem="{Binding Theme}" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock
+                        Width="120"
+                        VerticalAlignment="Center"
+                        Text="Мова:" />
+                    <ComboBox
+                        Width="200"
+                        ItemsSource="{Binding Languages}"
+                        SelectedItem="{Binding Language}" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock
+                        Width="120"
+                        VerticalAlignment="Center"
+                        Text="Папка медіа:" />
+                    <TextBox
+                        Width="300"
+                        Text="{Binding MediaFolderPath, UpdateSourceTrigger=PropertyChanged}"
+                        Watermark="Шлях до папки" />
+                    <Button
+                        Width="36"
+                        Height="36"
+                        Margin="8,0,0,0"
+                        Content="📂"
+                        ToolTip.Tip="Обрати директорію"
+                        Command="{Binding SelectMediaFolderCommand}" />
+                </StackPanel>
+            </StackPanel>
         </StackPanel>
     </Border>
 </UserControl>

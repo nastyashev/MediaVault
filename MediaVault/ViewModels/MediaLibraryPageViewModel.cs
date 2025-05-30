@@ -381,8 +381,60 @@ namespace MediaVault.ViewModels
                 var folder = await dialog.ShowAsync(mainWindow);
                 if (!string.IsNullOrEmpty(folder))
                 {
+                    // Зберігаємо обрану директорію у config.xml
+                    SaveMediaFolderPathToConfig(folder);
+
                     await ScanDirectory(folder);
                 }
+            }
+        }
+
+        private void SaveMediaFolderPathToConfig(string folderPath)
+        {
+            try
+            {
+                var dataDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data");
+                var configPath = Path.Combine(dataDir, "config.xml");
+                if (!Directory.Exists(dataDir))
+                    Directory.CreateDirectory(dataDir);
+
+                MediaVault.Models.ConfigModel config;
+                var serializer = new XmlSerializer(typeof(MediaVault.Models.ConfigModel));
+                if (File.Exists(configPath))
+                {
+                    using var stream = File.OpenRead(configPath);
+                    config = (MediaVault.Models.ConfigModel?)serializer.Deserialize(stream) ?? new MediaVault.Models.ConfigModel();
+                }
+                else
+                {
+                    config = new MediaVault.Models.ConfigModel();
+                }
+                config.MediaFolderPath = folderPath;
+                using var writeStream = File.Create(configPath);
+                serializer.Serialize(writeStream, config);
+
+                // Оновлюємо поле у ViewModel налаштувань, якщо воно є
+                if (App.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop)
+                {
+                    foreach (var window in desktop.Windows)
+                    {
+                        // Шукаємо SettingsPageViewModel серед DataContext відкритих вікон (або збережіть посилання іншим способом)
+                        if (window.DataContext is MediaVault.ViewModels.MainWindowViewModel mainVm)
+                        {
+                            mainVm.SettingsPageViewModel?.UpdateMediaFolderPath(folderPath);
+                        }
+                    }
+                }
+                else
+                {
+                    // Якщо є прямий доступ до SettingsPageViewModel, наприклад через DI або статичне поле:
+                    // SettingsPageViewModel?.UpdateMediaFolderPath(folderPath);
+                    ViewingHistoryViewModel?.GetType(); // just to avoid warning if not used
+                }
+            }
+            catch
+            {
+                // ignore errors
             }
         }
 
