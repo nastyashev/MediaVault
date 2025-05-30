@@ -12,6 +12,8 @@ namespace MediaVault.ViewModels
     {
         public ICommand BackCommand { get; }
         public ICommand SelectMediaFolderCommand { get; }
+        public ICommand ExportConfigCommand { get; }
+        public ICommand ImportConfigCommand { get; }
         public event EventHandler? BackToLibraryRequested;
 
         private static readonly string DataDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data");
@@ -78,6 +80,8 @@ namespace MediaVault.ViewModels
         {
             BackCommand = new RelayCommand(_ => BackToLibraryRequested?.Invoke(this, EventArgs.Empty));
             SelectMediaFolderCommand = new RelayCommand(async _ => await OnSelectMediaFolder());
+            ExportConfigCommand = new RelayCommand(async _ => await OnExportConfig());
+            ImportConfigCommand = new RelayCommand(async _ => await OnImportConfig());
             LoadConfig();
         }
 
@@ -149,6 +153,72 @@ namespace MediaVault.ViewModels
             if (!string.IsNullOrEmpty(folder))
             {
                 MediaFolderPath = folder;
+            }
+        }
+
+        private async System.Threading.Tasks.Task OnExportConfig()
+        {
+            var lifetime = Avalonia.Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime;
+            var mainWindow = lifetime?.MainWindow;
+            if (mainWindow == null)
+                return;
+
+            var dialog = new Avalonia.Controls.SaveFileDialog
+            {
+                Title = "Експортувати налаштування",
+                InitialFileName = "config.xml",
+                Filters = { new Avalonia.Controls.FileDialogFilter { Name = "XML файли", Extensions = { "xml" } } }
+            };
+            var path = await dialog.ShowAsync(mainWindow);
+            if (!string.IsNullOrEmpty(path))
+            {
+                try
+                {
+                    using var stream = File.Create(path);
+                    var serializer = new XmlSerializer(typeof(ConfigModel));
+                    serializer.Serialize(stream, _config);
+                }
+                catch
+                {
+                    // ignore errors
+                }
+            }
+        }
+
+        private async System.Threading.Tasks.Task OnImportConfig()
+        {
+            var lifetime = Avalonia.Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime;
+            var mainWindow = lifetime?.MainWindow;
+            if (mainWindow == null)
+                return;
+
+            var dialog = new Avalonia.Controls.OpenFileDialog
+            {
+                Title = "Імпортувати налаштування",
+                AllowMultiple = false,
+                Filters = { new Avalonia.Controls.FileDialogFilter { Name = "XML файли", Extensions = { "xml" } } }
+            };
+            var files = await dialog.ShowAsync(mainWindow);
+            if (files != null && files.Length > 0 && File.Exists(files[0]))
+            {
+                try
+                {
+                    using var stream = File.OpenRead(files[0]);
+                    var serializer = new XmlSerializer(typeof(ConfigModel));
+                    var imported = (ConfigModel?)serializer.Deserialize(stream);
+                    if (imported != null)
+                    {
+                        _config = imported;
+                        SaveConfig();
+                        OnPropertyChanged(nameof(Theme));
+                        OnPropertyChanged(nameof(Language));
+                        OnPropertyChanged(nameof(MediaFolderPath));
+                    }
+                }
+                catch
+                {
+                    // ignore errors
+                }
             }
         }
 
