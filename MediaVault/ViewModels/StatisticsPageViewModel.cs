@@ -12,7 +12,8 @@ using System.Diagnostics;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
-using QuestPDF.Drawing;
+using QuestPDF.Drawing; // For ICanvas
+using QuestPDF.Helpers; // For Colors
 using QuestPDF.Previewer;
 using System.Threading.Tasks;
 
@@ -448,71 +449,21 @@ namespace MediaVault.ViewModels
 
                             col.Item().Text($"Рік: {data.SelectedYear}");
 
-                            // Щомісячний час
+                            // --- Щомісячний графік (стовпчики) ---
                             col.Item().Text("Щомісячний час (годин):").Bold();
-                            col.Item().Table(table =>
-                            {
-                                table.ColumnsDefinition(columns =>
-                                {
-                                    columns.ConstantColumn(120);
-                                    columns.RelativeColumn();
-                                });
-                                table.Header(header =>
-                                {
-                                    header.Cell().Text("Місяць").Bold();
-                                    header.Cell().Text("Годин").Bold();
-                                });
-                                foreach (var m in data.Monthly)
-                                {
-                                    table.Cell().Text(m.Month);
-                                    table.Cell().Text(m.TotalHours.ToString());
-                                }
-                            });
+                            col.Item().Element(container =>
+                                container.Height(140).Svg(GenerateMonthlyBarChartSvg(data.Monthly))
+                            );
 
-                            // Добовий розподіл
-                            col.Item().Text($"Добовий розподіл (годин) за період {data.PeriodStart:yyyy-MM-dd} — {data.PeriodEnd:yyyy-MM-dd}:").Bold();
-                            col.Item().Table(table =>
-                            {
-                                table.ColumnsDefinition(columns =>
-                                {
-                                    columns.ConstantColumn(120);
-                                    columns.RelativeColumn();
-                                });
-                                table.Header(header =>
-                                {
-                                    header.Cell().Text("Інтервал").Bold();
-                                    header.Cell().Text("Годин").Bold();
-                                });
-                                foreach (var d in data.DailyIntervals)
-                                {
-                                    table.Cell().Text(d.Interval);
-                                    table.Cell().Text(d.TotalHours.ToString());
-                                }
-                            });
+                            // --- Добовий розподіл (стовпчики) ---
+                            col.Item().Element(container =>
+                                container.Height(140).Svg(GenerateDailyIntervalBarChartSvg(data.DailyIntervals))
+                            );
 
-                            // Популярність жанрів
-                            col.Item().Text("Популярність жанрів:").Bold();
-                            col.Item().Table(table =>
-                            {
-                                table.ColumnsDefinition(columns =>
-                                {
-                                    columns.ConstantColumn(120);
-                                    columns.RelativeColumn();
-                                    columns.RelativeColumn();
-                                });
-                                table.Header(header =>
-                                {
-                                    header.Cell().Text("Жанр").Bold();
-                                    header.Cell().Text("Годин").Bold();
-                                    header.Cell().Text("Відсоток").Bold();
-                                });
-                                foreach (var g in data.Genres)
-                                {
-                                    table.Cell().Text(g.Genre);
-                                    table.Cell().Text(g.TotalHours.ToString());
-                                    table.Cell().Text($"{g.Percent}%");
-                                }
-                            });
+                            // --- Кругова діаграма (жанри) ---
+                            col.Item().Element(container =>
+                                container.Height(170).Svg(GenerateGenrePieChartSvg(data.Genres))
+                            );
                         });
                         page.Footer()
                             .AlignCenter()
@@ -525,8 +476,121 @@ namespace MediaVault.ViewModels
             catch (Exception ex)
             {
                 Debug.WriteLine("QuestPDF export error: " + ex.Message);
-                // Можна показати повідомлення користувачу через MessageBox або інший механізм
             }
+        }
+
+        // --- SVG chart helpers ---
+
+        private string GenerateMonthlyBarChartSvg(List<MonthlyStatistic> monthly)
+        {
+            // SVG size and chart parameters
+            int width = 400, height = 120;
+            int leftPad = 40, bottomPad = 30, topPad = 10;
+            int barWidth = 20, spacing = 10;
+            int chartHeight = height - bottomPad - topPad;
+            int chartWidth = monthly.Count * (barWidth + spacing);
+            double max = monthly.Max(x => x.TotalHours);
+            if (max < 1) max = 1;
+
+            var svg = new System.Text.StringBuilder();
+            svg.AppendLine($"<svg width='{width}' height='{height}' xmlns='http://www.w3.org/2000/svg'>");
+            // Axes
+            svg.AppendLine($"<line x1='{leftPad}' y1='{height - bottomPad}' x2='{leftPad + chartWidth}' y2='{height - bottomPad}' stroke='gray' stroke-width='1'/>");
+            svg.AppendLine($"<line x1='{leftPad}' y1='{height - bottomPad}' x2='{leftPad}' y2='{topPad}' stroke='gray' stroke-width='1'/>");
+            // Bars and labels
+            for (int i = 0; i < monthly.Count; i++)
+            {
+                var m = monthly[i];
+                double barH = m.TotalHours / max * chartHeight;
+                double x = leftPad + i * (barWidth + spacing);
+                double y = height - bottomPad - barH;
+                svg.AppendLine($"<rect x='{x}' y='{y}' width='{barWidth}' height='{barH}' fill='#1976d2'/>");
+                // Month label
+                svg.AppendLine($"<text x='{x + barWidth / 2}' y='{height - bottomPad + 12}' font-size='8' text-anchor='middle'>{m.Month.Substring(0, 3)}</text>");
+                // Value label
+                svg.AppendLine($"<text x='{x + barWidth / 2}' y='{y - 2}' font-size='8' text-anchor='middle'>{m.TotalHours}</text>");
+            }
+            svg.AppendLine("</svg>");
+            return svg.ToString();
+        }
+
+        private string GenerateDailyIntervalBarChartSvg(List<DailyIntervalStatistic> intervals)
+        {
+            int width = 400, height = 120;
+            int leftPad = 40, bottomPad = 30, topPad = 10;
+            int barWidth = 20, spacing = 10;
+            int chartHeight = height - bottomPad - topPad;
+            int chartWidth = intervals.Count * (barWidth + spacing);
+            double max = intervals.Max(x => x.TotalHours);
+            if (max < 1) max = 1;
+
+            var svg = new System.Text.StringBuilder();
+            svg.AppendLine($"<svg width='{width}' height='{height}' xmlns='http://www.w3.org/2000/svg'>");
+            svg.AppendLine($"<line x1='{leftPad}' y1='{height - bottomPad}' x2='{leftPad + chartWidth}' y2='{height - bottomPad}' stroke='gray' stroke-width='1'/>");
+            svg.AppendLine($"<line x1='{leftPad}' y1='{height - bottomPad}' x2='{leftPad}' y2='{topPad}' stroke='gray' stroke-width='1'/>");
+            for (int i = 0; i < intervals.Count; i++)
+            {
+                var d = intervals[i];
+                double barH = d.TotalHours / max * chartHeight;
+                double x = leftPad + i * (barWidth + spacing);
+                double y = height - bottomPad - barH;
+                svg.AppendLine($"<rect x='{x}' y='{y}' width='{barWidth}' height='{barH}' fill='#ff9800'/>");
+                svg.AppendLine($"<text x='{x + barWidth / 2}' y='{height - bottomPad + 12}' font-size='7' text-anchor='middle'>{d.Interval.Substring(0, 5)}</text>");
+                svg.AppendLine($"<text x='{x + barWidth / 2}' y='{y - 2}' font-size='8' text-anchor='middle'>{d.TotalHours}</text>");
+            }
+            svg.AppendLine("</svg>");
+            return svg.ToString();
+        }
+
+        private string GenerateGenrePieChartSvg(List<GenreStatistic> genres)
+        {
+            int width = 170, height = 170;
+            double cx = 80, cy = 80, radius = 60;
+            double total = genres.Sum(g => g.TotalHours);
+            if (total <= 0) total = 1;
+            string[] palette = {
+                "#1976d2", "#ff9800", "#43a047", "#8e24aa", "#e53935", "#00897b", "#fbc02d", "#6d4c41",
+                "#00bcd4", "#d81b60", "#cddc39", "#3949ab", "#757575"
+            };
+
+            var svg = new System.Text.StringBuilder();
+            svg.AppendLine($"<svg width='{width}' height='{height}' xmlns='http://www.w3.org/2000/svg'>");
+            double startAngle = 0;
+            int colorIdx = 0;
+            foreach (var g in genres)
+            {
+                double sweep = g.TotalHours / total * 360.0;
+                if (sweep <= 0.1) continue;
+                double endAngle = startAngle + sweep;
+                // Pie slice path
+                string path = DescribeArc(cx, cy, radius, startAngle, endAngle);
+                svg.AppendLine($"<path d='{path}' fill='{palette[colorIdx % palette.Length]}' stroke='#444' stroke-width='1'/>");
+                // Label
+                double midAngle = startAngle + sweep / 2;
+                double rad = (midAngle - 90) * Math.PI / 180.0;
+                double labelX = cx + Math.Cos(rad) * (radius + 20);
+                double labelY = cy + Math.Sin(rad) * (radius + 20);
+                svg.AppendLine($"<text x='{labelX}' y='{labelY}' font-size='9' text-anchor='middle'>{g.Genre} ({g.Percent}%)</text>");
+                startAngle += sweep;
+                colorIdx++;
+            }
+            // Outline
+            svg.AppendLine($"<circle cx='{cx}' cy='{cy}' r='{radius}' fill='none' stroke='#888' stroke-width='1'/>");
+            svg.AppendLine("</svg>");
+            return svg.ToString();
+        }
+
+        // Helper for SVG pie slice
+        private string DescribeArc(double cx, double cy, double r, double startAngle, double endAngle)
+        {
+            double startRad = Math.PI * startAngle / 180.0;
+            double endRad = Math.PI * endAngle / 180.0;
+            double x1 = cx + r * Math.Cos(startRad);
+            double y1 = cy + r * Math.Sin(startRad);
+            double x2 = cx + r * Math.Cos(endRad);
+            double y2 = cy + r * Math.Sin(endRad);
+            int largeArc = (endAngle - startAngle) > 180 ? 1 : 0;
+            return $"M {cx},{cy} L {x1},{y1} A {r},{r} 0 {largeArc} 1 {x2},{y2} Z";
         }
 
         private void ExportToExcel(string filePath, ExportData data)

@@ -53,28 +53,15 @@ namespace MediaVault.Views
             if (window == null || window.StorageProvider is null)
                 return null;
 
-            var fileTypes = new List<FilePickerFileType>();
-            if (format == "pdf")
+            var fileTypes = new List<FilePickerFileType>
             {
-                fileTypes.Add(new FilePickerFileType("PDF")
+                new FilePickerFileType("PDF")
                 {
-                    Patterns = new[] { "*.pdf" },
-                    MimeTypes = new[] { "application/pdf" }
-                });
-            }
-            else
-            {
-                fileTypes.Add(new FilePickerFileType("Excel")
-                {
-                    Patterns = new[] { "*.xlsx" },
-                    MimeTypes = new[] { "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }
-                });
-                fileTypes.Add(new FilePickerFileType("CSV")
-                {
-                    Patterns = new[] { "*.csv" },
-                    MimeTypes = new[] { "text/csv" }
-                });
-            }
+                    Patterns = ["*.pdf"],
+                    MimeTypes = ["application/pdf"]
+                }
+            };
+
 
             var options = new FilePickerSaveOptions
             {
