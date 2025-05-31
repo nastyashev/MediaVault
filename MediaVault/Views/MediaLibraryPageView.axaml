@@ -16,17 +16,18 @@
     <UserControl.Resources>
         <local:UrlToBitmapConverter x:Key="UrlToBitmapConverter" />
         <local:InverseBooleanConverter x:Key="InverseBooleanConverter" />
+        <local:IsNotNullConverter x:Key="IsNotNullConverter" />
     </UserControl.Resources>
 
-    <DockPanel>
-        <!--  Верхня панель  -->
+    <!--  Верхня панель залишаємо через DockPanel  -->
+    <DockPanel LastChildFill="True">
         <Border
             Padding="0,0,0,8"
             Background="{DynamicResource ThemeControlLowBrush}"
             BorderBrush="{DynamicResource ThemeDividerBrush}"
             BorderThickness="0,0,0,1"
             DockPanel.Dock="Top">
-            <Grid VerticalAlignment="Center" ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto,Auto,Auto">
+            <Grid VerticalAlignment="Center" ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto,Auto,Auto,Auto">
                 <Button
                     Grid.Column="0"
                     Width="36"
@@ -126,85 +127,182 @@
             </Grid>
         </Border>
 
-        <!--  Головна сторінка  -->
-        <Grid
-            HorizontalAlignment="Stretch"
-            VerticalAlignment="Stretch"
-            IsVisible="{Binding ViewingHistoryViewModel.IsViewingHistoryVisible, Converter={StaticResource InverseBooleanConverter}}">
-            <ScrollViewer
-                HorizontalAlignment="Stretch"
-                VerticalAlignment="Stretch"
-                HorizontalScrollBarVisibility="Auto"
-                VerticalScrollBarVisibility="Auto">
-                <Grid HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-                    <!--  Список  -->
-                    <ListBox
-                        Name="MediaListBox"
-                        DoubleTapped="OnMediaItemDoubleTapped"
-                        IsVisible="{Binding IsListView}"
-                        ItemsSource="{Binding MediaFiles}"
-                        SelectedItem="{Binding SelectedMediaFile, Mode=TwoWay}">
-                        <ListBox.ItemTemplate>
-                            <DataTemplate x:DataType="model:MediaFile">
-                                <StackPanel Margin="5" Orientation="Horizontal">
-                                    <Image
-                                        Width="48"
-                                        Height="48"
-                                        Margin="0,0,10,0"
-                                        Source="{Binding CoverImagePath}" />
-                                    <StackPanel>
-                                        <TextBlock FontWeight="Bold" Text="{Binding Title}" />
-                                        <TextBlock FontSize="12" Text="{Binding Genre}" />
-                                        <TextBlock FontSize="12" Text="{Binding ReleaseYear}" />
-                                    </StackPanel>
-                                </StackPanel>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
+        <!--  Основний контент: головний Grid з двома колонками  -->
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="220" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
 
-                    <!--  Галерея  -->
-                    <ListBox
-                        Name="MediaGallery"
-                        DoubleTapped="OnMediaItemDoubleTapped"
-                        IsVisible="{Binding IsGalleryView}"
-                        ItemsSource="{Binding MediaFiles}"
-                        SelectedItem="{Binding SelectedMediaFile, Mode=TwoWay}">
-                        <ListBox.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <WrapPanel Orientation="Horizontal" />
-                            </ItemsPanelTemplate>
-                        </ListBox.ItemsPanel>
-                        <ListBox.ItemTemplate>
-                            <DataTemplate x:DataType="model:MediaFile">
-                                <StackPanel Width="200" Margin="10">
-                                    <Border
-                                        HorizontalAlignment="Stretch"
-                                        BorderBrush="Gray"
-                                        BorderThickness="1">
+            <!--  Ліва колонка: Плейлисти  -->
+            <StackPanel
+                Grid.Column="0"
+                Margin="8"
+                Background="{DynamicResource ThemeControlLowBrush}">
+                <TextBlock
+                    Margin="0,0,0,8"
+                    FontWeight="Bold"
+                    Text="Плейлисти" />
+                <ListBox
+                    Height="200"
+                    ItemsSource="{Binding Playlists}"
+                    SelectedItem="{Binding SelectedPlaylist}">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Name}" />
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+                <Button
+                    Margin="0,8,0,0"
+                    Command="{Binding CreatePlaylistCommand}"
+                    Content="➕ Новий плейлист" />
+            </StackPanel>
+
+            <!--  Права колонка: Основний вміст (TabControl)  -->
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <!--  Кнопки для роботи з плейлистом  -->
+                <StackPanel
+                    Margin="8,0,0,0"
+                    Orientation="Horizontal"
+                    Spacing="8">
+                    <Button
+                        Command="{Binding AddToPlaylistCommand}"
+                        Content="Додати у плейлист" />
+                    <Button
+                        Command="{Binding RemoveFromPlaylistCommand}"
+                        Content="Видалити з плейлиста" />
+                </StackPanel>
+
+                <!--  TabControl з медіатекою та плейлистом  -->
+                <TabControl Grid.Row="1" Margin="0,8,0,0">
+                    <TabItem Header="Вся медіатека">
+                        <ScrollViewer
+                            HorizontalAlignment="Stretch"
+                            VerticalAlignment="Stretch"
+                            HorizontalScrollBarVisibility="Auto"
+                            VerticalScrollBarVisibility="Auto">
+                            <Grid HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                                <!--  Список  -->
+                                <ListBox
+                                    Name="MediaListBox"
+                                    DoubleTapped="OnMediaItemDoubleTapped"
+                                    IsVisible="{Binding IsListView}"
+                                    ItemsSource="{Binding MediaFiles}"
+                                    SelectedItem="{Binding SelectedMediaFile, Mode=TwoWay}">
+                                    <ListBox.ItemTemplate>
+                                        <!--  ...можна винести шаблон у ресурс...  -->
+                                        <DataTemplate>
+                                            <Grid Margin="5">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0" IsVisible="{Binding Cover, Converter={StaticResource IsNotNullConverter}}">
+                                                    <Image
+                                                        Width="48"
+                                                        Height="48"
+                                                        Margin="0,0,10,0"
+                                                        Source="{Binding CoverImagePath, Converter={StaticResource UrlToBitmapConverter}}" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="1" Orientation="Vertical">
+                                                    <TextBlock FontWeight="Bold" Text="{Binding Title}" />
+                                                    <TextBlock FontSize="12" Text="{Binding Genre}" />
+                                                    <TextBlock FontSize="12" Text="{Binding ReleaseYear}" />
+                                                </StackPanel>
+                                                <StackPanel
+                                                    Grid.Column="2"
+                                                    Margin="10,0,0,0"
+                                                    VerticalAlignment="Center"
+                                                    Orientation="Horizontal">
+                                                    <Button
+                                                        Width="32"
+                                                        Height="32"
+                                                        Margin="5,0,0,0"
+                                                        Content="✏️"
+                                                        ToolTip.Tip="Редагувати" />
+                                                </StackPanel>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                                <!--  Галерея  -->
+                                <ListBox
+                                    Name="MediaGallery"
+                                    DoubleTapped="OnMediaItemDoubleTapped"
+                                    IsVisible="{Binding IsGalleryView}"
+                                    ItemsSource="{Binding MediaFiles}"
+                                    SelectedItem="{Binding SelectedMediaFile, Mode=TwoWay}">
+                                    <ListBox.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel Orientation="Horizontal" />
+                                        </ItemsPanelTemplate>
+                                    </ListBox.ItemsPanel>
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Width="200" Margin="10">
+                                                <Border
+                                                    Width="180"
+                                                    Height="260"
+                                                    HorizontalAlignment="Center"
+                                                    BorderBrush="Gray"
+                                                    BorderThickness="1"
+                                                    ClipToBounds="True">
+                                                    <Image
+                                                        Width="180"
+                                                        Height="260"
+                                                        HorizontalAlignment="Stretch"
+                                                        VerticalAlignment="Stretch"
+                                                        Source="{Binding CoverImagePath, Converter={StaticResource UrlToBitmapConverter}}"
+                                                        Stretch="UniformToFill" />
+                                                </Border>
+                                                <TextBlock
+                                                    Margin="0,5,0,0"
+                                                    HorizontalAlignment="Center"
+                                                    Text="{Binding Title}" />
+                                                <TextBlock
+                                                    HorizontalAlignment="Center"
+                                                    FontSize="12"
+                                                    Text="{Binding Genre}" />
+                                                <TextBlock
+                                                    HorizontalAlignment="Center"
+                                                    FontSize="12"
+                                                    Text="{Binding ReleaseYear}" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </Grid>
+                        </ScrollViewer>
+                    </TabItem>
+                    <TabItem Header="Вибраний плейлист" IsEnabled="{Binding SelectedPlaylist, Converter={StaticResource IsNotNullConverter}}">
+                        <ListBox ItemsSource="{Binding PlaylistMediaFiles}" SelectedItem="{Binding SelectedMediaFile, Mode=TwoWay}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Margin="5" Orientation="Horizontal">
                                         <Image
-                                            Width="180"
-                                            Height="260"
-                                            Source="{Binding CoverImagePath, Converter={StaticResource UrlToBitmapConverter}}"
-                                            Stretch="UniformToFill" />
-                                    </Border>
-                                    <TextBlock
-                                        Margin="0,5,0,0"
-                                        HorizontalAlignment="Center"
-                                        Text="{Binding Title}" />
-                                    <TextBlock
-                                        HorizontalAlignment="Center"
-                                        FontSize="12"
-                                        Text="{Binding Genre}" />
-                                    <TextBlock
-                                        HorizontalAlignment="Center"
-                                        FontSize="12"
-                                        Text="{Binding ReleaseYear}" />
-                                </StackPanel>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
-                </Grid>
-            </ScrollViewer>
+                                            Width="48"
+                                            Height="48"
+                                            Margin="0,0,10,0"
+                                            Source="{Binding CoverImagePath, Converter={StaticResource UrlToBitmapConverter}}" />
+                                        <StackPanel Orientation="Vertical">
+                                            <TextBlock FontWeight="Bold" Text="{Binding Title}" />
+                                            <TextBlock FontSize="12" Text="{Binding Genre}" />
+                                            <TextBlock FontSize="12" Text="{Binding ReleaseYear}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </TabItem>
+                </TabControl>
+            </Grid>
         </Grid>
     </DockPanel>
 </UserControl>

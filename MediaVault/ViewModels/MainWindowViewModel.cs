@@ -12,13 +12,8 @@ namespace MediaVault.ViewModels
             ViewingHistoryViewModel = MediaLibraryPageViewModel.ViewingHistoryViewModel;
             StatisticsPageViewModel = new StatisticsPageViewModel();
 
-            MediaLibraryPageView = new MediaLibraryPageView { DataContext = MediaLibraryPageViewModel };
-            ViewingHistoryView = new ViewingHistoryView { DataContext = ViewingHistoryViewModel };
-            StatisticsPageView = new StatisticsPageView { DataContext = StatisticsPageViewModel };
-
             // Додаємо сторінку налаштувань
             SettingsPageViewModel = new SettingsPageViewModel();
-            SettingsPageView = new SettingsPageView { DataContext = SettingsPageViewModel };
 
             MediaLibraryPageViewModel.ShowViewingHistoryRequested += OnShowViewingHistoryRequested;
             ViewingHistoryViewModel.BackToLibraryRequested += OnBackToLibraryRequested;
@@ -29,17 +24,13 @@ namespace MediaVault.ViewModels
             MediaLibraryPageViewModel.ShowSettingsRequested += OnShowSettingsRequested;
             SettingsPageViewModel.BackToLibraryRequested += OnBackToLibraryRequested;
 
-            CurrentPage = MediaLibraryPageView;
+            CurrentPage = MediaLibraryPageViewModel;
         }
 
         public MediaLibraryPageViewModel MediaLibraryPageViewModel { get; }
         public ViewingHistoryViewModel ViewingHistoryViewModel { get; }
         public StatisticsPageViewModel StatisticsPageViewModel { get; }
-        public MediaLibraryPageView MediaLibraryPageView { get; }
-        public ViewingHistoryView ViewingHistoryView { get; }
-        public StatisticsPageView StatisticsPageView { get; }
         public SettingsPageViewModel SettingsPageViewModel { get; }
-        public SettingsPageView SettingsPageView { get; }
 
         public object CurrentPage
         {
@@ -57,22 +48,22 @@ namespace MediaVault.ViewModels
 
         private void OnShowViewingHistoryRequested(object? sender, EventArgs e)
         {
-            CurrentPage = ViewingHistoryView;
+            CurrentPage = ViewingHistoryViewModel;
         }
 
         private void OnShowStatisticsRequested(object? sender, EventArgs e)
         {
-            CurrentPage = StatisticsPageView;
+            CurrentPage = StatisticsPageViewModel;
         }
 
         private void OnShowSettingsRequested(object? sender, EventArgs e)
         {
-            CurrentPage = SettingsPageView;
+            CurrentPage = SettingsPageViewModel;
         }
 
         private void OnBackToLibraryRequested(object? sender, EventArgs e)
         {
-            CurrentPage = MediaLibraryPageView;
+            CurrentPage = MediaLibraryPageViewModel;
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

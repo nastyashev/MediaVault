@@ -14,6 +14,7 @@ using Avalonia.Threading;
 using TMDbLib.Objects.General;
 using TMDbLib.Objects.Movies;
 using MediaVault.ViewModels; // додайте цей using, якщо потрібно
+using MediaVault.Views; // додайте цей using для доступу до UrlToBitmapConverter
 
 namespace MediaVault.ViewModels
 {
@@ -25,6 +26,7 @@ namespace MediaVault.ViewModels
         private MediaFile? _selectedMediaFile;
         private static readonly string LibraryDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data");
         private static readonly string LibraryFilePath = Path.Combine(LibraryDirectory, "library.xml");
+        private static readonly string PlaylistsFilePath = Path.Combine(LibraryDirectory, "playlists.xml");
 
         // Додаємо ViewModel для історії перегляду
         public ViewingHistoryViewModel ViewingHistoryViewModel { get; } = new ViewingHistoryViewModel();
@@ -33,6 +35,42 @@ namespace MediaVault.ViewModels
         public event EventHandler? ShowViewingHistoryRequested;
         public event EventHandler? ShowStatisticsRequested;
         public event EventHandler? ShowSettingsRequested; // додати подію
+
+        // Колекція плейлистів
+        public ObservableCollection<Playlist> Playlists { get; } = new ObservableCollection<Playlist>();
+
+        private Playlist? _selectedPlaylist;
+        public Playlist? SelectedPlaylist
+        {
+            get => _selectedPlaylist;
+            set
+            {
+                if (_selectedPlaylist != value)
+                {
+                    _selectedPlaylist = value;
+                    OnPropertyChanged(nameof(SelectedPlaylist));
+                    OnPropertyChanged(nameof(PlaylistMediaFiles));
+                    // Оновити стан команд для кнопок додавання/видалення
+                    (AddToPlaylistCommand as RelayCommand)?.RaiseCanExecuteChanged();
+                    (RemoveFromPlaylistCommand as RelayCommand)?.RaiseCanExecuteChanged();
+                }
+            }
+        }
+
+        public ObservableCollection<MediaFile> PlaylistMediaFiles
+        {
+            get
+            {
+                if (SelectedPlaylist == null)
+                    return new ObservableCollection<MediaFile>();
+                var files = _allMediaFiles.Where(m => SelectedPlaylist.FileIds.Contains(m.FilePath)).ToList();
+                return new ObservableCollection<MediaFile>(files);
+            }
+        }
+
+        public ICommand CreatePlaylistCommand { get; }
+        public ICommand AddToPlaylistCommand { get; }
+        public ICommand RemoveFromPlaylistCommand { get; }
 
         public MediaLibraryPageViewModel()
         {
@@ -47,6 +85,16 @@ namespace MediaVault.ViewModels
             SearchCommand = new RelayCommand(_ => OnSearch());
             ShowViewingHistoryCommand = new RelayCommand(_ => ShowViewingHistory());
             ShowStatisticsCommand = new RelayCommand(_ => ShowStatistics());
+            EditMediaCommand = new RelayCommand(EditMedia);
+            CreatePlaylistCommand = new RelayCommand(_ => CreatePlaylistDialog());
+            AddToPlaylistCommand = new RelayCommand(
+                _ => AddSelectedToPlaylist(),
+                _ => SelectedPlaylist != null && SelectedMediaFile != null && !SelectedPlaylist.FileIds.Contains(SelectedMediaFile.FilePath)
+            );
+            RemoveFromPlaylistCommand = new RelayCommand(
+                _ => RemoveSelectedFromPlaylist(),
+                _ => SelectedPlaylist != null && SelectedMediaFile != null && SelectedPlaylist.FileIds.Contains(SelectedMediaFile.FilePath)
+            );
 
             // Ensure Data directory exists
             if (!Directory.Exists(LibraryDirectory))
@@ -61,7 +109,8 @@ namespace MediaVault.ViewModels
             // Завантажити жанри з TMDb
             LoadGenresFromTmdb();
 
-            Debug.WriteLine("[MainWindowViewModel] Initialized");
+            // Завантажити плейлисти з файлу
+            LoadPlaylists();
         }
 
         public string Greeting { get; } = "Welcome to Avalonia!";
@@ -77,6 +126,9 @@ namespace MediaVault.ViewModels
                 {
                     _selectedMediaFile = value;
                     OnPropertyChanged(nameof(SelectedMediaFile));
+                    // Оновити стан команд для кнопок додавання/видалення
+                    (AddToPlaylistCommand as RelayCommand)?.RaiseCanExecuteChanged();
+                    (RemoveFromPlaylistCommand as RelayCommand)?.RaiseCanExecuteChanged();
                 }
             }
         }
@@ -114,6 +166,7 @@ namespace MediaVault.ViewModels
         public ICommand SearchCommand { get; }
         public ICommand ShowViewingHistoryCommand { get; }
         public ICommand ShowStatisticsCommand { get; }
+        public ICommand EditMediaCommand { get; }
 
         private string? _selectedGenre;
         public ObservableCollection<string> AvailableGenres { get; } = new ObservableCollection<string> { "Всі жанри" };
@@ -336,18 +389,23 @@ namespace MediaVault.ViewModels
                     Debug.WriteLine($"[TMDb] Found: {movie.Title} (ID: {movie.Id})");
                     var movieDetails = await _tmdbClient.GetMovieAsync(movie.Id);
                     mediaFile.Genre = string.Join(", ", movieDetails.Genres.Select(g => g.Name));
-                    mediaFile.CoverImagePath = "https://image.tmdb.org/t/p/w500" + movieDetails.PosterPath;
+                    if (!string.IsNullOrEmpty(movieDetails.PosterPath))
+                        mediaFile.CoverImagePath = "https://image.tmdb.org/t/p/w500" + movieDetails.PosterPath;
+                    else
+                        mediaFile.CoverImagePath = "Assets/placeholder.png"; // локальна заглушка
                     mediaFile.ReleaseYear = movieDetails.ReleaseDate?.Year ?? 0;
                     Debug.WriteLine($"[TMDb] Genre: {mediaFile.Genre}, Year: {mediaFile.ReleaseYear}, Cover: {mediaFile.CoverImagePath}");
                 }
                 else
                 {
                     Debug.WriteLine($"[TMDb] No movie found for '{searchTitle}'");
+                    mediaFile.CoverImagePath = "Assets/placeholder.png"; // локальна заглушка
                 }
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error fetching data from TMDb: {ex.Message}");
+                mediaFile.CoverImagePath = "Assets/placeholder.png"; // локальна заглушка
             }
         }
 
@@ -467,6 +525,14 @@ namespace MediaVault.ViewModels
             public string genre { get; set; }
             public DateTime added_date { get; set; }
             public string metadata { get; set; }
+        }
+
+        // --- Модель плейлиста ---
+        public class Playlist
+        {
+            public string Id { get; set; }
+            public string Name { get; set; }
+            public List<string> FileIds { get; set; } = new List<string>();
         }
 
         private async void LoadGenresFromTmdb()
@@ -618,6 +684,222 @@ namespace MediaVault.ViewModels
                 }
             }
             return TimeSpan.Zero;
+        }
+
+        private async void EditMedia(object? parameter)
+        {
+            if (parameter is MediaFile mediaFile)
+            {
+                // Простий діалог для редагування (жанр, рік, обкладинка)
+                var window = Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
+                    ? desktop.MainWindow
+                    : null;
+
+                // 1. Запит нового жанру
+                var genreDialog = new Avalonia.Controls.Window
+                {
+                    Title = "Редагувати жанр",
+                    Width = 400,
+                    Height = 120,
+                    Content = new Avalonia.Controls.StackPanel
+                    {
+                        Margin = new Avalonia.Thickness(10),
+                        Children =
+                        {
+                            new Avalonia.Controls.TextBlock { Text = "Жанр:" },
+                            new Avalonia.Controls.TextBox { Name = "GenreBox", Text = mediaFile.Genre ?? "" },
+                            new Avalonia.Controls.Button { Name = "OkBtn", Content = "OK", HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right }
+                        }
+                    }
+                };
+
+                string? newGenre = mediaFile.Genre;
+                if (window != null)
+                {
+                    var genreBox = ((Avalonia.Controls.StackPanel)genreDialog.Content!).Children[1] as Avalonia.Controls.TextBox;
+                    var okBtn = ((Avalonia.Controls.StackPanel)genreDialog.Content!).Children[2] as Avalonia.Controls.Button;
+                    okBtn.Click += (_, __) => genreDialog.Close(genreBox.Text);
+                    newGenre = await genreDialog.ShowDialog<string>(window);
+                }
+
+                // 2. Запит нового року
+                var yearDialog = new Avalonia.Controls.Window
+                {
+                    Title = "Редагувати рік релізу",
+                    Width = 400,
+                    Height = 120,
+                    Content = new Avalonia.Controls.StackPanel
+                    {
+                        Margin = new Avalonia.Thickness(10),
+                        Children =
+                        {
+                            new Avalonia.Controls.TextBlock { Text = "Рік релізу:" },
+                            new Avalonia.Controls.TextBox { Name = "YearBox", Text = mediaFile.ReleaseYear.ToString() },
+                            new Avalonia.Controls.Button { Name = "OkBtn", Content = "OK", HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right }
+                        }
+                    }
+                };
+
+                int newYear = mediaFile.ReleaseYear;
+                if (window != null)
+                {
+                    var yearBox = ((Avalonia.Controls.StackPanel)yearDialog.Content!).Children[1] as Avalonia.Controls.TextBox;
+                    var okBtn = ((Avalonia.Controls.StackPanel)yearDialog.Content!).Children[2] as Avalonia.Controls.Button;
+                    okBtn.Click += (_, __) => yearDialog.Close(yearBox.Text);
+                    var yearStr = await yearDialog.ShowDialog<string>(window);
+                    int.TryParse(yearStr, out newYear);
+                }
+
+                // 3. Запит нової обкладинки (URL)
+                var coverDialog = new Avalonia.Controls.Window
+                {
+                    Title = "Редагувати обкладинку (URL)",
+                    Width = 400,
+                    Height = 120,
+                    Content = new Avalonia.Controls.StackPanel
+                    {
+                        Margin = new Avalonia.Thickness(10),
+                        Children =
+                        {
+                            new Avalonia.Controls.TextBlock { Text = "URL обкладинки:" },
+                            new Avalonia.Controls.TextBox { Name = "CoverBox", Text = mediaFile.CoverImagePath ?? "" },
+                            new Avalonia.Controls.Button { Name = "OkBtn", Content = "OK", HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right }
+                        }
+                    }
+                };
+
+                string? newCover = mediaFile.CoverImagePath;
+                if (window != null)
+                {
+                    var coverBox = ((Avalonia.Controls.StackPanel)coverDialog.Content!).Children[1] as Avalonia.Controls.TextBox;
+                    var okBtn = ((Avalonia.Controls.StackPanel)coverDialog.Content!).Children[2] as Avalonia.Controls.Button;
+                    okBtn.Click += (_, __) => coverDialog.Close(coverBox.Text);
+                    newCover = await coverDialog.ShowDialog<string>(window);
+                }
+
+                // Оновлюємо властивості
+                mediaFile.Genre = newGenre ?? mediaFile.Genre;
+                mediaFile.ReleaseYear = newYear;
+                mediaFile.CoverImagePath = newCover ?? mediaFile.CoverImagePath;
+
+                // Зберігаємо зміни у бібліотеці
+                var entries = LoadLibraryFromXml(LibraryFilePath);
+                var entry = entries.FirstOrDefault(e => e.file_id == mediaFile.FilePath);
+                if (entry != null)
+                {
+                    entry.genre = mediaFile.Genre ?? "";
+                    entry.title = mediaFile.Title ?? "";
+                    entry.metadata = $"ReleaseYear: {mediaFile.ReleaseYear}, Cover: {mediaFile.CoverImagePath}, Duration: {mediaFile.Duration}";
+                }
+                SaveLibraryToXml(entries, LibraryFilePath);
+
+                // Оновлюємо відображення
+                ApplySortAndFilter();
+            }
+        }
+
+        // --- Методи для роботи з плейлистами ---
+
+        public void CreatePlaylist(string name)
+        {
+            if (!string.IsNullOrWhiteSpace(name) && !Playlists.Any(p => p.Name == name))
+            {
+                Playlists.Add(new Playlist { Name = name, Id = Guid.NewGuid().ToString() });
+                SavePlaylists();
+                OnPropertyChanged(nameof(Playlists));
+            }
+        }
+
+        private async void CreatePlaylistDialog()
+        {
+            var window = Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
+                ? desktop.MainWindow
+                : null;
+
+            if (window != null)
+            {
+                var dialog = new Avalonia.Controls.Window
+                {
+                    Title = "Новий плейлист",
+                    Width = 400,
+                    Height = 120,
+                    Content = new Avalonia.Controls.StackPanel
+                    {
+                        Margin = new Avalonia.Thickness(10),
+                        Children =
+                        {
+                            new Avalonia.Controls.TextBlock { Text = "Назва плейлиста:" },
+                            new Avalonia.Controls.TextBox { Name = "NameBox" },
+                            new Avalonia.Controls.Button { Name = "OkBtn", Content = "OK", HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right }
+                        }
+                    }
+                };
+
+                var nameBox = ((Avalonia.Controls.StackPanel)dialog.Content!).Children[1] as Avalonia.Controls.TextBox;
+                var okBtn = ((Avalonia.Controls.StackPanel)dialog.Content!).Children[2] as Avalonia.Controls.Button;
+                okBtn.Click += (_, __) => dialog.Close(nameBox.Text);
+                var playlistName = await dialog.ShowDialog<string>(window);
+                if (!string.IsNullOrWhiteSpace(playlistName))
+                {
+                    CreatePlaylist(playlistName);
+                }
+            }
+        }
+
+        public void AddSelectedToPlaylist()
+        {
+            if (SelectedPlaylist != null && SelectedMediaFile != null && !SelectedPlaylist.FileIds.Contains(SelectedMediaFile.FilePath))
+            {
+                SelectedPlaylist.FileIds.Add(SelectedMediaFile.FilePath);
+                SavePlaylists();
+                OnPropertyChanged(nameof(PlaylistMediaFiles));
+                // Динамічно оновити стан кнопок
+                (AddToPlaylistCommand as RelayCommand)?.RaiseCanExecuteChanged();
+                (RemoveFromPlaylistCommand as RelayCommand)?.RaiseCanExecuteChanged();
+            }
+        }
+
+        public void RemoveSelectedFromPlaylist()
+        {
+            if (SelectedPlaylist != null && SelectedMediaFile != null && SelectedPlaylist.FileIds.Contains(SelectedMediaFile.FilePath))
+            {
+                SelectedPlaylist.FileIds.Remove(SelectedMediaFile.FilePath);
+                SavePlaylists();
+                OnPropertyChanged(nameof(PlaylistMediaFiles));
+                // Динамічно оновити стан кнопок
+                (AddToPlaylistCommand as RelayCommand)?.RaiseCanExecuteChanged();
+                (RemoveFromPlaylistCommand as RelayCommand)?.RaiseCanExecuteChanged();
+            }
+        }
+
+        private void SavePlaylists()
+        {
+            try
+            {
+                var serializer = new XmlSerializer(typeof(List<Playlist>));
+                using (var stream = new FileStream(PlaylistsFilePath, FileMode.Create))
+                {
+                    serializer.Serialize(stream, Playlists.ToList());
+                }
+            }
+            catch { }
+        }
+
+        private void LoadPlaylists()
+        {
+            try
+            {
+                if (!File.Exists(PlaylistsFilePath)) return;
+                var serializer = new XmlSerializer(typeof(List<Playlist>));
+                using (var stream = new FileStream(PlaylistsFilePath, FileMode.Open))
+                {
+                    var loaded = (List<Playlist>)serializer.Deserialize(stream);
+                    Playlists.Clear();
+                    foreach (var p in loaded)
+                        Playlists.Add(p);
+                }
+            }
+            catch { }
         }
     }
 }
