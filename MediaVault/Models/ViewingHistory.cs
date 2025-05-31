@@ -17,6 +17,7 @@ namespace MediaVault.Models
         public int Duration { get; set; } // seconds
         public int EndTime { get; set; } // seconds
         public string Status { get; set; } = string.Empty;
+        public string Genre { get; set; } = string.Empty; // додано жанр
     }
 
     [Serializable]

@@ -200,7 +200,10 @@ namespace MediaVault.ViewModels
                         Date = DateTime.Parse(r.Element("ViewDate")?.Value ?? DateTime.MinValue.ToString()),
                         DurationSeconds = double.TryParse(r.Element("Duration")?.Value, out var d) ? d : 0,
                         FileId = r.Element("FileId")?.Value ?? "",
-                        FileName = r.Element("FileName")?.Value ?? ""
+                        FileName = r.Element("FileName")?.Value ?? "",
+                        // Додаємо жанр, якщо є в історії, інакше шукаємо в бібліотеці
+                        Genre = r.Element("Genre")?.Value
+                            ?? (fileIdToGenre.TryGetValue(r.Element("FileId")?.Value ?? "", out var genre) ? genre : "Інше")
                     })
                     .ToList();
 

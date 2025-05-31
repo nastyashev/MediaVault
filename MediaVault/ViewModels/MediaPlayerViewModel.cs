@@ -159,11 +159,7 @@ namespace MediaVault.ViewModels
                     OnPropertyChanged(nameof(Position));
                     OnPropertyChanged(nameof(PositionString));
                     // --- Позначення як переглянутого при 95% ---
-                    if (!_mediaFile.IsWatched && MediaPlayer.Position >= 0.95f)
-                    {
-                        _mediaFile.IsWatched = true;
-                        LogViewPauseOrStop("переглянуто");
-                    }
+                    // Видалено автоматичне встановлення IsWatched і запису "переглянуто" тут
                 }
             };
             MediaPlayer.LengthChanged += (s, e) =>
@@ -219,7 +215,7 @@ namespace MediaVault.ViewModels
 
         public void Dispose()
         {
-            LogViewPauseOrStop("переглянуто");
+            LogViewPauseOrStop("в процесі");
             MediaPlayer.Dispose();
             _libVLC.Dispose();
         }
@@ -236,7 +232,8 @@ namespace MediaVault.ViewModels
                 ViewDate = _viewStartTime ?? DateTime.Now,
                 Duration = 0,
                 EndTime = 0,
-                Status = "в процесі"
+                Status = "в процесі",
+                Genre = _mediaFile.Genre ?? "" // Додаємо жанр, якщо є
             };
             _currentRecordId = record.RecordId;
             log.AddRecord(record);
@@ -255,7 +252,21 @@ namespace MediaVault.ViewModels
                 int endTime = (int)Position;
                 record.Duration = duration;
                 record.EndTime = endTime;
-                record.Status = status;
+
+                // Встановлюємо статус "переглянуто" ТІЛЬКИ якщо позиція >= 95%
+                if (MediaPlayer != null && Duration > 0 && (MediaPlayer.Position >= 0.95f || endTime >= 0.95 * Duration))
+                {
+                    record.Status = "переглянуто";
+                    _mediaFile.IsWatched = true;
+                }
+                else
+                {
+                    record.Status = status;
+                }
+
+                // Оновлюємо жанр, якщо він є в _mediaFile
+                if (!string.IsNullOrWhiteSpace(_mediaFile.Genre))
+                    record.Genre = _mediaFile.Genre;
                 log.Save();
             }
         }

@@ -557,6 +557,26 @@ namespace MediaVault.ViewModels
             }
         }
 
+        public ObservableCollection<string> StatusFilters { get; } = new ObservableCollection<string>
+        {
+            "Всі статуси", "Переглянуто", "В процесі", "Не почато"
+        };
+
+        private string? _selectedStatusFilter = "Всі статуси";
+        public string? SelectedStatusFilter
+        {
+            get => _selectedStatusFilter;
+            set
+            {
+                if (_selectedStatusFilter != value)
+                {
+                    _selectedStatusFilter = value;
+                    OnPropertyChanged(nameof(SelectedStatusFilter));
+                    ApplySortAndFilter();
+                }
+            }
+        }
+
         private void ApplySortAndFilter()
         {
             IEnumerable<MediaFile> filtered = _allMediaFiles;
@@ -565,6 +585,32 @@ namespace MediaVault.ViewModels
             if (!string.IsNullOrEmpty(SelectedGenre) && SelectedGenre != "Всі жанри")
             {
                 filtered = filtered.Where(m => m.Genre != null && m.Genre.Split(',').Select(g => g.Trim()).Contains(SelectedGenre));
+            }
+
+            // Фільтрація за статусом перегляду
+            if (!string.IsNullOrEmpty(SelectedStatusFilter) && SelectedStatusFilter != "Всі статуси")
+            {
+                // Підготуємо історію для швидкого пошуку
+                var history = MediaVault.Models.ViewingHistoryLog.Load();
+                var lastStatusByFile = history.Records
+                    .GroupBy(r => r.FileId)
+                    .Select(g => new { FileId = g.Key, Last = g.OrderByDescending(r => r.ViewDate).FirstOrDefault() })
+                    .ToDictionary(x => x.FileId, x => x.Last?.Status);
+
+                filtered = filtered.Where(m =>
+                {
+                    if (!lastStatusByFile.TryGetValue(m.FilePath, out var status))
+                    {
+                        // Якщо запису немає, це "Не почато"
+                        return SelectedStatusFilter == "Не почато";
+                    }
+                    if (status == "переглянуто")
+                        return SelectedStatusFilter == "Переглянуто";
+                    if (status == "в процесі")
+                        return SelectedStatusFilter == "В процесі";
+                    // fallback
+                    return false;
+                });
             }
 
             // Фільтрація за пошуком
