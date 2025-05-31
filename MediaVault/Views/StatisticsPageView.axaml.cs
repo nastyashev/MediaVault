@@ -5,6 +5,11 @@ using System.Collections.Generic;
 using System.Globalization;
 using Avalonia.Data;
 using Avalonia.Media;
+using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Platform.Storage;
+using System.Threading.Tasks; // Ensure Task is imported
 
 namespace MediaVault.Views
 {
@@ -19,30 +24,90 @@ namespace MediaVault.Views
                 this.Resources.Add("HoursToHeightConverter", new HoursToHeightConverter());
             if (!this.Resources.ContainsKey("GenreToColorConverter"))
                 this.Resources.Add("GenreToColorConverter", new GenreToColorConverter());
-        }
-    }
 
-    public class HoursToHeightConverter : IValueConverter
-    {
-        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+            // Підписка на подію для діалогу збереження (асинхронна версія)
+            if (DataContext is MediaVault.ViewModels.StatisticsPageViewModel vm)
+            {
+                vm.SaveFileDialogRequested += ShowSaveFileDialogAsync;
+            }
+            this.DataContextChanged += (_, _) =>
+            {
+                if (this.DataContext is MediaVault.ViewModels.StatisticsPageViewModel vm2)
+                    vm2.SaveFileDialogRequested += ShowSaveFileDialogAsync;
+            };
+        }
+
+        private void ExportButton_PointerPressed(object? sender, PointerPressedEventArgs e)
         {
-            // Масштабуємо: 1 година = 8 пікселів, мінімум 10 пікселів
-            if (value is double hours)
-                return Math.Max(10, hours * 8);
-            if (value is int intHours)
-                return Math.Max(10, intHours * 8);
-            return 10;
+            if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed && sender is Button btn && btn.ContextMenu != null)
+            {
+                btn.ContextMenu.PlacementTarget = btn;
+                btn.ContextMenu.Open();
+                e.Handled = true;
+            }
         }
 
-        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        private async Task<string?> ShowSaveFileDialogAsync(string defaultFileName, string? format, string? _)
         {
-            throw new NotImplementedException();
-        }
-    }
+            var window = this.VisualRoot as Window;
+            if (window == null || window.StorageProvider is null)
+                return null;
 
-    public class GenreToColorConverter : IValueConverter
-    {
-        private static readonly List<Color> Palette = new()
+            var fileTypes = new List<FilePickerFileType>();
+            if (format == "pdf")
+            {
+                fileTypes.Add(new FilePickerFileType("PDF")
+                {
+                    Patterns = new[] { "*.pdf" },
+                    MimeTypes = new[] { "application/pdf" }
+                });
+            }
+            else
+            {
+                fileTypes.Add(new FilePickerFileType("Excel")
+                {
+                    Patterns = new[] { "*.xlsx" },
+                    MimeTypes = new[] { "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }
+                });
+                fileTypes.Add(new FilePickerFileType("CSV")
+                {
+                    Patterns = new[] { "*.csv" },
+                    MimeTypes = new[] { "text/csv" }
+                });
+            }
+
+            var options = new FilePickerSaveOptions
+            {
+                SuggestedFileName = defaultFileName,
+                FileTypeChoices = fileTypes
+            };
+
+            var result = await window.StorageProvider.SaveFilePickerAsync(options);
+            return result?.Path.LocalPath;
+        }
+
+
+        public class HoursToHeightConverter : IValueConverter
+        {
+            public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+            {
+                // Масштабуємо: 1 година = 8 пікселів, мінімум 10 пікселів
+                if (value is double hours)
+                    return Math.Max(10, hours * 8);
+                if (value is int intHours)
+                    return Math.Max(10, intHours * 8);
+                return 10;
+            }
+
+            public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        public class GenreToColorConverter : IValueConverter
+        {
+            private static readonly List<Color> Palette = new()
         {
             Colors.SteelBlue,
             Colors.Orange,
@@ -59,23 +124,24 @@ namespace MediaVault.Views
             Colors.Gray
         };
 
-        private static readonly Dictionary<string, Color> GenreColors = new(StringComparer.OrdinalIgnoreCase);
+            private static readonly Dictionary<string, Color> GenreColors = new(StringComparer.OrdinalIgnoreCase);
 
-        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
-        {
-            var genre = value as string ?? "Інше";
-            if (!GenreColors.TryGetValue(genre, out var color))
+            public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
             {
-                color = Palette[GenreColors.Count % Palette.Count];
-                GenreColors[genre] = color;
+                var genre = value as string ?? "Інше";
+                if (!GenreColors.TryGetValue(genre, out var color))
+                {
+                    color = Palette[GenreColors.Count % Palette.Count];
+                    GenreColors[genre] = color;
+                }
+                // Повертаємо SolidColorBrush замість Color
+                return new SolidColorBrush(color);
             }
-            // Повертаємо SolidColorBrush замість Color
-            return new SolidColorBrush(color);
-        }
 
-        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-        {
-            throw new NotImplementedException();
+            public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            {
+                throw new NotImplementedException();
+            }
         }
     }
 }

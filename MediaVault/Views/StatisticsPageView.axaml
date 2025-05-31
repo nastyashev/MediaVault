@@ -6,8 +6,11 @@
     xmlns:vm="clr-namespace:MediaVault.ViewModels"
     x:DataType="vm:StatisticsPageViewModel">
     <UserControl.Resources>
+        <!--  Видаліть ці рядки, якщо конвертери оголошені у .axaml.cs  -->
+        <!--
         <local:HoursToHeightConverter x:Key="HoursToHeightConverter" />
         <local:GenreToColorConverter x:Key="GenreToColorConverter" />
+        -->
     </UserControl.Resources>
     <ScrollViewer>
         <StackPanel Margin="0,0,0,8" Spacing="8">
@@ -32,6 +35,23 @@
                     FontSize="24"
                     FontWeight="Bold"
                     Text="Статистика" />
+            </StackPanel>
+            <StackPanel
+                Margin="12,0,0,0"
+                Orientation="Horizontal"
+                Spacing="8">
+                <ComboBox
+                    x:Name="ExportFormatComboBox"
+                    Width="100"
+                    ItemsSource="{Binding ExportFormats}"
+                    SelectedIndex="0"
+                    SelectedItem="{Binding SelectedExportFormat, Mode=TwoWay}"
+                    ToolTip.Tip="Оберіть формат експорту" />
+                <Button
+                    Command="{Binding ExportReportCommand}"
+                    CommandParameter="{Binding SelectedExportFormat}"
+                    Content="Експорт"
+                    ToolTip.Tip="Експортувати звіт" />
             </StackPanel>
             <StackPanel
                 Margin="10,5,10,0"

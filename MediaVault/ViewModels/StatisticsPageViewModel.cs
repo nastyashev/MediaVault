@@ -8,6 +8,13 @@ using System.Xml.Linq;
 using System.Reflection;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Diagnostics;
+using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
+using QuestPDF.Drawing;
+using QuestPDF.Previewer;
+using System.Threading.Tasks;
 
 namespace MediaVault.ViewModels
 {
@@ -37,6 +44,7 @@ namespace MediaVault.ViewModels
         public event EventHandler? BackToLibraryRequested;
 
         public ICommand BackCommand { get; }
+        public ICommand ExportReportCommand { get; } // Додаємо команду експорту
 
         public ObservableCollection<MonthlyStatistic> MonthlyStatistics { get; }
         public ObservableCollection<DailyIntervalStatistic> DailyIntervalStatistics { get; } // нова колекція
@@ -106,9 +114,28 @@ namespace MediaVault.ViewModels
 
         private List<dynamic> allRecords = new(); // Зберігаємо всі записи для фільтрації
 
+        public ObservableCollection<string> ExportFormats { get; } = new() { "pdf", "excel" };
+        private string _selectedExportFormat = "pdf";
+        public string SelectedExportFormat
+        {
+            get => _selectedExportFormat;
+            set
+            {
+                if (_selectedExportFormat != value)
+                {
+                    _selectedExportFormat = value;
+                    OnPropertyChanged(nameof(SelectedExportFormat));
+                }
+            }
+        }
+
+        // Додаємо подію для запиту шляху збереження
+        public event Func<string, string, string?, Task<string?>>? SaveFileDialogRequested;
+
         public StatisticsPageViewModel()
         {
             BackCommand = new RelayCommand(_ => BackToLibraryRequested?.Invoke(this, EventArgs.Empty));
+            ExportReportCommand = new RelayCommand(async param => await ExportReportAsync(param));
             MonthlyStatistics = new ObservableCollection<MonthlyStatistic>();
             DailyIntervalStatistics = new ObservableCollection<DailyIntervalStatistic>();
             GenreStatistics = new ObservableCollection<GenreStatistic>();
@@ -125,6 +152,8 @@ namespace MediaVault.ViewModels
 
             LoadMonthlyStatisticsFromHistory();
             LoadDailyIntervalStatistics();
+
+            QuestPDF.Settings.License = LicenseType.Community;
         }
 
         private void LoadLibraryGenres()
@@ -337,6 +366,192 @@ namespace MediaVault.ViewModels
             int largeArc = sweepAngle > 180 ? 1 : 0;
 
             return $"M {cx.ToString(fmt)},{cy.ToString(fmt)} L {x1b.ToString(fmt)},{y1b.ToString(fmt)} A {r.ToString(fmt)},{r.ToString(fmt)} 0 {largeArc} 1 {x2b.ToString(fmt)},{y2b.ToString(fmt)} Z";
+        }
+
+        private async Task ExportReportAsync(object? parameter)
+        {
+            string? format = parameter as string;
+            if (string.IsNullOrWhiteSpace(format))
+                format = SelectedExportFormat;
+
+            var exportData = GetExportData();
+
+            string defaultFileName = $"MediaVault_Statistics_{PeriodStart:yyyyMMdd}_{PeriodEnd:yyyyMMdd}.{(format == "pdf" ? "pdf" : "xlsx")}";
+
+            string filter = format == "pdf" ? "PDF files (*.pdf)|*.pdf" : "Excel files (*.xlsx;*.csv)|*.xlsx;*.csv";
+            string? filePath = SaveFileDialogRequested != null
+                ? await SaveFileDialogRequested.Invoke(defaultFileName, filter, format)
+                : null;
+
+            if (string.IsNullOrWhiteSpace(filePath))
+                return;
+
+            try
+            {
+                if (format == "pdf")
+                {
+                    ExportToPdf(filePath, exportData);
+                }
+                else if (format == "excel")
+                {
+                    ExportToExcel(filePath, exportData);
+                }
+                if (File.Exists(filePath))
+                    Process.Start(new ProcessStartInfo { FileName = filePath, UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("Export error: " + ex.Message);
+            }
+        }
+
+        private class ExportData
+        {
+            public int SelectedYear { get; set; }
+            public List<MonthlyStatistic> Monthly { get; set; } = new();
+            public DateTimeOffset? PeriodStart { get; set; }
+            public DateTimeOffset? PeriodEnd { get; set; }
+            public List<DailyIntervalStatistic> DailyIntervals { get; set; } = new();
+            public List<GenreStatistic> Genres { get; set; } = new();
+        }
+
+        private ExportData GetExportData()
+        {
+            return new ExportData
+            {
+                SelectedYear = SelectedYear,
+                Monthly = MonthlyStatistics.ToList(),
+                PeriodStart = PeriodStart,
+                PeriodEnd = PeriodEnd,
+                DailyIntervals = DailyIntervalStatistics.ToList(),
+                Genres = GenreStatistics.ToList()
+            };
+        }
+
+        private void ExportToPdf(string filePath, ExportData data)
+        {
+            try
+            {
+                var document = Document.Create(container =>
+                {
+                    container.Page(page =>
+                    {
+                        page.Margin(30);
+                        page.Size(PageSizes.A4);
+                        page.DefaultTextStyle(x => x.FontSize(12));
+                        page.Header()
+                            .Text($"Звіт MediaVault")
+                            .SemiBold().FontSize(18).FontColor(Colors.Blue.Medium);
+                        page.Content().Column(col =>
+                        {
+                            col.Spacing(10);
+
+                            col.Item().Text($"Рік: {data.SelectedYear}");
+
+                            // Щомісячний час
+                            col.Item().Text("Щомісячний час (годин):").Bold();
+                            col.Item().Table(table =>
+                            {
+                                table.ColumnsDefinition(columns =>
+                                {
+                                    columns.ConstantColumn(120);
+                                    columns.RelativeColumn();
+                                });
+                                table.Header(header =>
+                                {
+                                    header.Cell().Text("Місяць").Bold();
+                                    header.Cell().Text("Годин").Bold();
+                                });
+                                foreach (var m in data.Monthly)
+                                {
+                                    table.Cell().Text(m.Month);
+                                    table.Cell().Text(m.TotalHours.ToString());
+                                }
+                            });
+
+                            // Добовий розподіл
+                            col.Item().Text($"Добовий розподіл (годин) за період {data.PeriodStart:yyyy-MM-dd} — {data.PeriodEnd:yyyy-MM-dd}:").Bold();
+                            col.Item().Table(table =>
+                            {
+                                table.ColumnsDefinition(columns =>
+                                {
+                                    columns.ConstantColumn(120);
+                                    columns.RelativeColumn();
+                                });
+                                table.Header(header =>
+                                {
+                                    header.Cell().Text("Інтервал").Bold();
+                                    header.Cell().Text("Годин").Bold();
+                                });
+                                foreach (var d in data.DailyIntervals)
+                                {
+                                    table.Cell().Text(d.Interval);
+                                    table.Cell().Text(d.TotalHours.ToString());
+                                }
+                            });
+
+                            // Популярність жанрів
+                            col.Item().Text("Популярність жанрів:").Bold();
+                            col.Item().Table(table =>
+                            {
+                                table.ColumnsDefinition(columns =>
+                                {
+                                    columns.ConstantColumn(120);
+                                    columns.RelativeColumn();
+                                    columns.RelativeColumn();
+                                });
+                                table.Header(header =>
+                                {
+                                    header.Cell().Text("Жанр").Bold();
+                                    header.Cell().Text("Годин").Bold();
+                                    header.Cell().Text("Відсоток").Bold();
+                                });
+                                foreach (var g in data.Genres)
+                                {
+                                    table.Cell().Text(g.Genre);
+                                    table.Cell().Text(g.TotalHours.ToString());
+                                    table.Cell().Text($"{g.Percent}%");
+                                }
+                            });
+                        });
+                        page.Footer()
+                            .AlignCenter()
+                            .Text($"MediaVault • {DateTime.Now:yyyy-MM-dd HH:mm}")
+                            .FontSize(10).FontColor(Colors.Grey.Medium);
+                    });
+                });
+                document.GeneratePdf(filePath);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("QuestPDF export error: " + ex.Message);
+                // Можна показати повідомлення користувачу через MessageBox або інший механізм
+            }
+        }
+
+        private void ExportToExcel(string filePath, ExportData data)
+        {
+            // TODO: Замінити на реальну генерацію Excel.
+            using (var sw = new StreamWriter(filePath, false, System.Text.Encoding.UTF8))
+            {
+                sw.WriteLine($"Звіт MediaVault");
+                sw.WriteLine($"Рік;{data.SelectedYear}");
+                sw.WriteLine();
+                sw.WriteLine("Щомісячний час (годин):");
+                sw.WriteLine("Місяць;Годин");
+                foreach (var m in data.Monthly)
+                    sw.WriteLine($"{m.Month};{m.TotalHours}");
+                sw.WriteLine();
+                sw.WriteLine($"Добовий розподіл (годин) за період;{data.PeriodStart:yyyy-MM-dd};{data.PeriodEnd:yyyy-MM-dd}");
+                sw.WriteLine("Інтервал;Годин");
+                foreach (var d in data.DailyIntervals)
+                    sw.WriteLine($"{d.Interval};{d.TotalHours}");
+                sw.WriteLine();
+                sw.WriteLine("Популярність жанрів:");
+                sw.WriteLine("Жанр;Годин;Відсоток");
+                foreach (var g in data.Genres)
+                    sw.WriteLine($"{g.Genre};{g.TotalHours};{g.Percent}");
+            }
         }
     }
 }
