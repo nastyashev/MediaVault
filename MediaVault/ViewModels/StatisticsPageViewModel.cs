@@ -16,6 +16,7 @@ using QuestPDF.Drawing; // For ICanvas
 using QuestPDF.Helpers; // For Colors
 using QuestPDF.Previewer;
 using System.Threading.Tasks;
+using OfficeOpenXml; // Add this at the top (requires EPPlus NuGet package)
 
 namespace MediaVault.ViewModels
 {
@@ -393,7 +394,7 @@ namespace MediaVault.ViewModels
                 {
                     ExportToPdf(filePath, exportData);
                 }
-                else if (format == "excel")
+                if (format == "excel")
                 {
                     ExportToExcel(filePath, exportData);
                 }
@@ -451,16 +452,24 @@ namespace MediaVault.ViewModels
 
                             // --- Щомісячний графік (стовпчики) ---
                             col.Item().Text("Щомісячний час (годин):").Bold();
+                            col.Item().Text($"Діаграма: сумарний час перегляду по місяцях за {data.SelectedYear} рік.").FontSize(10).FontColor(Colors.Grey.Darken2);
                             col.Item().Element(container =>
                                 container.Height(140).Svg(GenerateMonthlyBarChartSvg(data.Monthly))
                             );
 
                             // --- Добовий розподіл (стовпчики) ---
+                            col.Item().Text("Добовий розподіл часу (годин):").Bold();
+                            col.Item().Text(
+                                $"Діаграма: сумарний час перегляду по 3-годинних інтервалах доби за період " +
+                                $"{data.PeriodStart:yyyy-MM-dd} — {data.PeriodEnd:yyyy-MM-dd}."
+                            ).FontSize(10).FontColor(Colors.Grey.Darken2);
                             col.Item().Element(container =>
                                 container.Height(140).Svg(GenerateDailyIntervalBarChartSvg(data.DailyIntervals))
                             );
 
                             // --- Кругова діаграма (жанри) ---
+                            col.Item().Text("Популярність жанрів:").Bold();
+                            col.Item().Text($"Діаграма: розподіл часу перегляду за жанрами за {data.SelectedYear} рік.").FontSize(10).FontColor(Colors.Grey.Darken2);
                             col.Item().Element(container =>
                                 container.Height(170).Svg(GenerateGenrePieChartSvg(data.Genres))
                             );
@@ -557,22 +566,36 @@ namespace MediaVault.ViewModels
             svg.AppendLine($"<svg width='{width}' height='{height}' xmlns='http://www.w3.org/2000/svg'>");
             double startAngle = 0;
             int colorIdx = 0;
-            foreach (var g in genres)
+
+            // Special case: only one genre and it is 100%
+            var nonZeroGenres = genres.Where(g => g.TotalHours > 0).ToList();
+            if (nonZeroGenres.Count == 1)
             {
-                double sweep = g.TotalHours / total * 360.0;
-                if (sweep <= 0.1) continue;
-                double endAngle = startAngle + sweep;
-                // Pie slice path
-                string path = DescribeArc(cx, cy, radius, startAngle, endAngle);
-                svg.AppendLine($"<path d='{path}' fill='{palette[colorIdx % palette.Length]}' stroke='#444' stroke-width='1'/>");
+                var g = nonZeroGenres[0];
+                // Draw a full circle
+                svg.AppendLine($"<circle cx='{cx}' cy='{cy}' r='{radius}' fill='{palette[0]}' stroke='#444' stroke-width='1'/>");
                 // Label
-                double midAngle = startAngle + sweep / 2;
-                double rad = (midAngle - 90) * Math.PI / 180.0;
-                double labelX = cx + Math.Cos(rad) * (radius + 20);
-                double labelY = cy + Math.Sin(rad) * (radius + 20);
-                svg.AppendLine($"<text x='{labelX}' y='{labelY}' font-size='9' text-anchor='middle'>{g.Genre} ({g.Percent}%)</text>");
-                startAngle += sweep;
-                colorIdx++;
+                svg.AppendLine($"<text x='{cx}' y='{cy + radius + 20}' font-size='9' text-anchor='middle'>{g.Genre} ({g.Percent}%)</text>");
+            }
+            else
+            {
+                foreach (var g in genres)
+                {
+                    double sweep = g.TotalHours / total * 360.0;
+                    if (sweep <= 0.1) continue;
+                    double endAngle = startAngle + sweep;
+                    // Pie slice path
+                    string path = DescribeArc(cx, cy, radius, startAngle, endAngle);
+                    svg.AppendLine($"<path d='{path}' fill='{palette[colorIdx % palette.Length]}' stroke='#444' stroke-width='1'/>");
+                    // Label
+                    double midAngle = startAngle + sweep / 2;
+                    double rad = (midAngle - 90) * Math.PI / 180.0;
+                    double labelX = cx + Math.Cos(rad) * (radius + 20);
+                    double labelY = cy + Math.Sin(rad) * (radius + 20);
+                    svg.AppendLine($"<text x='{labelX}' y='{labelY}' font-size='9' text-anchor='middle'>{g.Genre} ({g.Percent}%)</text>");
+                    startAngle += sweep;
+                    colorIdx++;
+                }
             }
             // Outline
             svg.AppendLine($"<circle cx='{cx}' cy='{cy}' r='{radius}' fill='none' stroke='#888' stroke-width='1'/>");
@@ -595,26 +618,86 @@ namespace MediaVault.ViewModels
 
         private void ExportToExcel(string filePath, ExportData data)
         {
-            // TODO: Замінити на реальну генерацію Excel.
-            using (var sw = new StreamWriter(filePath, false, System.Text.Encoding.UTF8))
+            ExcelPackage.License.SetNonCommercialOrganization("MediaVault");
+
+            using (var package = new ExcelPackage())
             {
-                sw.WriteLine($"Звіт MediaVault");
-                sw.WriteLine($"Рік;{data.SelectedYear}");
-                sw.WriteLine();
-                sw.WriteLine("Щомісячний час (годин):");
-                sw.WriteLine("Місяць;Годин");
+                // --- Щомісячний графік (стовпчики) ---
+                var wsMonth = package.Workbook.Worksheets.Add("Місяці");
+                wsMonth.Cells[1, 1].Value = "Щомісячний час (годин)";
+                wsMonth.Cells[2, 1].Value = $"Діаграма: сумарний час перегляду по місяцях за {data.SelectedYear} рік.";
+                wsMonth.Cells[3, 1].Value = "Місяць";
+                wsMonth.Cells[3, 2].Value = "Годин";
+                int row = 4;
                 foreach (var m in data.Monthly)
-                    sw.WriteLine($"{m.Month};{m.TotalHours}");
-                sw.WriteLine();
-                sw.WriteLine($"Добовий розподіл (годин) за період;{data.PeriodStart:yyyy-MM-dd};{data.PeriodEnd:yyyy-MM-dd}");
-                sw.WriteLine("Інтервал;Годин");
+                {
+                    wsMonth.Cells[row, 1].Value = m.Month;
+                    wsMonth.Cells[row, 2].Value = m.TotalHours;
+                    row++;
+                }
+                wsMonth.Cells[wsMonth.Dimension.Address].AutoFitColumns();
+
+                // Додаємо стовпчикову діаграму для місяців
+                var chartMonth = wsMonth.Drawings.AddChart("chartMonth", OfficeOpenXml.Drawing.Chart.eChartType.ColumnClustered);
+                chartMonth.Title.Text = "Щомісячний час (годин)";
+                chartMonth.SetPosition(1, 0, 3, 0);
+                chartMonth.SetSize(600, 300);
+                var seriesMonth = chartMonth.Series.Add($"B4:B{row - 1}", $"A4:A{row - 1}");
+                seriesMonth.Header = "Годин";
+
+                // --- Добовий розподіл (стовпчики) ---
+                var wsDay = package.Workbook.Worksheets.Add("Доба");
+                wsDay.Cells[1, 1].Value = "Добовий розподіл часу (годин)";
+                wsDay.Cells[2, 1].Value = $"Діаграма: сумарний час перегляду по 3-годинних інтервалах доби за період {data.PeriodStart:yyyy-MM-dd} — {data.PeriodEnd:yyyy-MM-dd}.";
+                wsDay.Cells[3, 1].Value = "Інтервал";
+                wsDay.Cells[3, 2].Value = "Годин";
+                row = 4;
                 foreach (var d in data.DailyIntervals)
-                    sw.WriteLine($"{d.Interval};{d.TotalHours}");
-                sw.WriteLine();
-                sw.WriteLine("Популярність жанрів:");
-                sw.WriteLine("Жанр;Годин;Відсоток");
+                {
+                    wsDay.Cells[row, 1].Value = d.Interval;
+                    wsDay.Cells[row, 2].Value = d.TotalHours;
+                    row++;
+                }
+                wsDay.Cells[wsDay.Dimension.Address].AutoFitColumns();
+
+                // Додаємо стовпчикову діаграму для добового розподілу
+                var chartDay = wsDay.Drawings.AddChart("chartDay", OfficeOpenXml.Drawing.Chart.eChartType.ColumnClustered);
+                chartDay.Title.Text = "Добовий розподіл часу (годин)";
+                chartDay.SetPosition(1, 0, 3, 0);
+                chartDay.SetSize(600, 300);
+                var seriesDay = chartDay.Series.Add($"B4:B{row - 1}", $"A4:A{row - 1}");
+                seriesDay.Header = "Годин";
+
+                // --- Кругова діаграма (жанри) ---
+                var wsGenre = package.Workbook.Worksheets.Add("Жанри");
+                wsGenre.Cells[1, 1].Value = "Популярність жанрів";
+                wsGenre.Cells[2, 1].Value = $"Діаграма: розподіл часу перегляду за жанрами за {data.SelectedYear} рік.";
+                wsGenre.Cells[3, 1].Value = "Жанр";
+                wsGenre.Cells[3, 2].Value = "Годин";
+                wsGenre.Cells[3, 3].Value = "Відсоток";
+                row = 4;
                 foreach (var g in data.Genres)
-                    sw.WriteLine($"{g.Genre};{g.TotalHours};{g.Percent}");
+                {
+                    wsGenre.Cells[row, 1].Value = g.Genre;
+                    wsGenre.Cells[row, 2].Value = g.TotalHours;
+                    wsGenre.Cells[row, 3].Value = g.Percent;
+                    row++;
+                }
+                wsGenre.Cells[wsGenre.Dimension.Address].AutoFitColumns();
+
+                // Додаємо кругову діаграму для жанрів
+                var chartGenre = wsGenre.Drawings.AddChart("chartGenre", OfficeOpenXml.Drawing.Chart.eChartType.Pie);
+                chartGenre.Title.Text = "Популярність жанрів";
+                chartGenre.SetPosition(1, 0, 4, 0);
+                chartGenre.SetSize(600, 300);
+                var seriesGenre = chartGenre.Series.Add($"B4:B{row - 1}", $"A4:A{row - 1}");
+                seriesGenre.Header = "Годин";
+
+                // Save to file
+                using (var fs = new FileStream(filePath, FileMode.Create, FileAccess.Write))
+                {
+                    package.SaveAs(fs);
+                }
             }
         }
     }
