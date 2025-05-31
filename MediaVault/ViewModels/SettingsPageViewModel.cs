@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.IO;
 using System.Windows.Input;
 using System.Xml.Serialization;
@@ -8,7 +7,7 @@ using MediaVault.Models;
 
 namespace MediaVault.ViewModels
 {
-    public class SettingsPageViewModel : INotifyPropertyChanged
+    public class SettingsPageViewModel : ViewModelBase
     {
         public ICommand BackCommand { get; }
         public ICommand SelectMediaFolderCommand { get; }
@@ -221,9 +220,5 @@ namespace MediaVault.ViewModels
                 }
             }
         }
-
-        public event PropertyChangedEventHandler? PropertyChanged;
-        protected void OnPropertyChanged(string propertyName) =>
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 }

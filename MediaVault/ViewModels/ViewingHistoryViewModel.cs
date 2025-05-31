@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.Linq;
 using MediaVault.Models;
 using System.Windows.Input;
@@ -9,48 +8,31 @@ using System;
 
 namespace MediaVault.ViewModels
 {
-    public class ViewingHistoryViewModel : INotifyPropertyChanged
+    public class ViewingHistoryViewModel : ViewModelBase
     {
         private ObservableCollection<ViewingHistoryRecord> _sortedHistory;
         public ObservableCollection<ViewingHistoryRecord> SortedHistory
         {
             get => _sortedHistory;
-            set
-            {
-                if (_sortedHistory != value)
-                {
-                    _sortedHistory = value;
-                    OnPropertyChanged(nameof(SortedHistory));
-                }
-            }
+            set => SetProperty(ref _sortedHistory, value);
         }
 
         private bool _isViewingHistoryVisible;
         public bool IsViewingHistoryVisible
         {
             get => _isViewingHistoryVisible;
-            set
-            {
-                if (_isViewingHistoryVisible != value)
-                {
-                    _isViewingHistoryVisible = value;
-                    OnPropertyChanged(nameof(IsViewingHistoryVisible));
-                }
-            }
+            set => SetProperty(ref _isViewingHistoryVisible, value);
         }
 
         public ICommand ExportCommand { get; }
         public ICommand HideHistoryCommand { get; }
+        public ICommand RefreshCommand { get; } // Додаємо команду оновлення
 
         public event EventHandler? BackToLibraryRequested;
 
         public ViewingHistoryViewModel()
         {
-            var log = ViewingHistoryLog.Load();
-            var sorted = log.Records
-                .OrderByDescending(r => r.ViewDate)
-                .ToList();
-            SortedHistory = new ObservableCollection<ViewingHistoryRecord>(sorted);
+            RefreshHistory();
 
             ExportCommand = new RelayCommand(async _ =>
             {
@@ -96,10 +78,18 @@ namespace MediaVault.ViewModels
                 IsViewingHistoryVisible = false;
                 BackToLibraryRequested?.Invoke(this, EventArgs.Empty);
             });
+
+            RefreshCommand = new RelayCommand(_ => RefreshHistory()); // Ініціалізуємо команду
         }
 
-        public event PropertyChangedEventHandler? PropertyChanged;
-        protected void OnPropertyChanged(string propertyName) =>
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        // Додаємо метод для оновлення історії
+        public void RefreshHistory()
+        {
+            var log = ViewingHistoryLog.Load();
+            var sorted = log.Records
+                .OrderByDescending(r => r.ViewDate)
+                .ToList();
+            SortedHistory = new ObservableCollection<ViewingHistoryRecord>(sorted);
+        }
     }
 }

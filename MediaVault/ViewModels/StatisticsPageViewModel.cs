@@ -40,9 +40,8 @@ namespace MediaVault.ViewModels
         public string PathData { get; set; } // SVG path for pie sector
     }
 
-    public class StatisticsPageViewModel : INotifyPropertyChanged
+    public class StatisticsPageViewModel : ViewModelBase
     {
-        public event PropertyChangedEventHandler? PropertyChanged;
         public event EventHandler? BackToLibraryRequested;
 
         public ICommand BackCommand { get; }
@@ -59,10 +58,8 @@ namespace MediaVault.ViewModels
             get => _selectedYear;
             set
             {
-                if (_selectedYear != value)
+                if (SetProperty(ref _selectedYear, value))
                 {
-                    _selectedYear = value;
-                    OnPropertyChanged(nameof(SelectedYear));
                     LoadMonthlyStatisticsFromHistory(); // Перерахувати статистику для вибраного року
                 }
             }
@@ -74,10 +71,8 @@ namespace MediaVault.ViewModels
             get => _periodStart;
             set
             {
-                if (_periodStart != value)
+                if (SetProperty(ref _periodStart, value))
                 {
-                    _periodStart = value;
-                    OnPropertyChanged(nameof(PeriodStart));
                     LoadDailyIntervalStatistics();
                 }
             }
@@ -89,10 +84,8 @@ namespace MediaVault.ViewModels
             get => _periodEnd;
             set
             {
-                if (_periodEnd != value)
+                if (SetProperty(ref _periodEnd, value))
                 {
-                    _periodEnd = value;
-                    OnPropertyChanged(nameof(PeriodEnd));
                     LoadDailyIntervalStatistics();
                 }
             }
@@ -121,14 +114,7 @@ namespace MediaVault.ViewModels
         public string SelectedExportFormat
         {
             get => _selectedExportFormat;
-            set
-            {
-                if (_selectedExportFormat != value)
-                {
-                    _selectedExportFormat = value;
-                    OnPropertyChanged(nameof(SelectedExportFormat));
-                }
-            }
+            set => SetProperty(ref _selectedExportFormat, value);
         }
 
         // Додаємо подію для запиту шляху збереження
@@ -329,9 +315,6 @@ namespace MediaVault.ViewModels
                 return ukrMonths[month - 1];
             return month.ToString();
         }
-
-        protected void OnPropertyChanged(string propertyName) =>
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 
         // SVG path for pie sector
         private static string CreatePieSlicePath(double cx, double cy, double r, double startAngle, double sweepAngle)

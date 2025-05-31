@@ -1,6 +1,5 @@
 using System;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -18,7 +17,7 @@ using MediaVault.Views; // додайте цей using для доступу д�
 
 namespace MediaVault.ViewModels
 {
-    public class MediaLibraryPageViewModel : INotifyPropertyChanged
+    public class MediaLibraryPageViewModel : ViewModelBase
     {
         private readonly TMDbClient _tmdbClient;
         private bool _isListView;
@@ -45,11 +44,9 @@ namespace MediaVault.ViewModels
             get => _selectedPlaylist;
             set
             {
-                if (_selectedPlaylist != value)
+                if (SetProperty(ref _selectedPlaylist, value))
                 {
-                    _selectedPlaylist = value;
                     UpdatePlaylistMediaFiles();
-                    OnPropertyChanged(nameof(SelectedPlaylist));
                     OnPropertyChanged(nameof(PlaylistMediaFiles));
                     // Оновити стан команд для кнопок додавання/видалення
                     (AddToPlaylistCommand as RelayCommand)?.RaiseCanExecuteChanged();
@@ -127,10 +124,8 @@ namespace MediaVault.ViewModels
             get => _selectedMediaFile;
             set
             {
-                if (_selectedMediaFile != value)
+                if (SetProperty(ref _selectedMediaFile, value))
                 {
-                    _selectedMediaFile = value;
-                    OnPropertyChanged(nameof(SelectedMediaFile));
                     // Оновити стан команд для кнопок додавання/видалення
                     (AddToPlaylistCommand as RelayCommand)?.RaiseCanExecuteChanged();
                     (RemoveFromPlaylistCommand as RelayCommand)?.RaiseCanExecuteChanged();
@@ -143,11 +138,9 @@ namespace MediaVault.ViewModels
             get => _isListView;
             set
             {
-                if (_isListView != value)
+                if (SetProperty(ref _isListView, value))
                 {
-                    _isListView = value;
                     if (_isListView) IsGalleryView = false;
-                    OnPropertyChanged(nameof(IsListView));
                 }
             }
         }
@@ -157,11 +150,9 @@ namespace MediaVault.ViewModels
             get => _isGalleryView;
             set
             {
-                if (_isGalleryView != value)
+                if (SetProperty(ref _isGalleryView, value))
                 {
-                    _isGalleryView = value;
                     if (_isGalleryView) IsListView = false;
-                    OnPropertyChanged(nameof(IsGalleryView));
                 }
             }
         }
@@ -181,10 +172,8 @@ namespace MediaVault.ViewModels
             get => _selectedGenre;
             set
             {
-                if (_selectedGenre != value)
+                if (SetProperty(ref _selectedGenre, value))
                 {
-                    _selectedGenre = value;
-                    OnPropertyChanged(nameof(SelectedGenre));
                     ApplyGenreFilter();
                 }
             }
@@ -234,10 +223,21 @@ namespace MediaVault.ViewModels
             get => _searchText;
             set
             {
-                if (_searchText != value)
+                if (SetProperty(ref _searchText, value))
                 {
-                    _searchText = value;
-                    OnPropertyChanged(nameof(SearchText));
+                    ApplySortAndFilter();
+                }
+            }
+        }
+
+        private string? _selectedStatusFilter = "Всі статуси";
+        public string? SelectedStatusFilter
+        {
+            get => _selectedStatusFilter;
+            set
+            {
+                if (SetProperty(ref _selectedStatusFilter, value))
+                {
                     ApplySortAndFilter();
                 }
             }
@@ -518,10 +518,6 @@ namespace MediaVault.ViewModels
             ViewingHistoryViewModel.IsViewingHistoryVisible = false;
         }
 
-        public event PropertyChangedEventHandler? PropertyChanged;
-        protected void OnPropertyChanged(string propertyName) =>
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-
         // Допоміжний клас для XML
         public class LibraryEntry
         {
@@ -566,21 +562,6 @@ namespace MediaVault.ViewModels
         {
             "Всі статуси", "Переглянуто", "В процесі", "Не почато"
         };
-
-        private string? _selectedStatusFilter = "Всі статуси";
-        public string? SelectedStatusFilter
-        {
-            get => _selectedStatusFilter;
-            set
-            {
-                if (_selectedStatusFilter != value)
-                {
-                    _selectedStatusFilter = value;
-                    OnPropertyChanged(nameof(SelectedStatusFilter));
-                    ApplySortAndFilter();
-                }
-            }
-        }
 
         private void ApplySortAndFilter()
         {

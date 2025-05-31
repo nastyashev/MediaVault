@@ -1,10 +1,9 @@
 ﻿using System;
-using System.ComponentModel;
 using MediaVault.Views;
 
 namespace MediaVault.ViewModels
 {
-    public class MainWindowViewModel : INotifyPropertyChanged
+    public class MainWindowViewModel : ViewModelBase
     {
         public MainWindowViewModel()
         {
@@ -32,19 +31,12 @@ namespace MediaVault.ViewModels
         public StatisticsPageViewModel StatisticsPageViewModel { get; }
         public SettingsPageViewModel SettingsPageViewModel { get; }
 
+        private object _currentPage;
         public object CurrentPage
         {
             get => _currentPage;
-            set
-            {
-                if (_currentPage != value)
-                {
-                    _currentPage = value;
-                    OnPropertyChanged(nameof(CurrentPage));
-                }
-            }
+            set => SetProperty(ref _currentPage, value);
         }
-        private object _currentPage;
 
         private void OnShowViewingHistoryRequested(object? sender, EventArgs e)
         {
@@ -65,9 +57,5 @@ namespace MediaVault.ViewModels
         {
             CurrentPage = MediaLibraryPageViewModel;
         }
-
-        public event PropertyChangedEventHandler? PropertyChanged;
-        protected void OnPropertyChanged(string propertyName) =>
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 }
