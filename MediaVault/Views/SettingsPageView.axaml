@@ -13,73 +13,76 @@
         BorderBrush="{DynamicResource ThemeBorderBrush}"
         BorderThickness="1"
         CornerRadius="12">
-        <StackPanel Spacing="16">
-            <StackPanel Orientation="Horizontal" Spacing="8">
+        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="16">
                 <Button
                     Width="110"
+                    Margin="0,0,0,0"
+                    HorizontalAlignment="Left"
                     Classes="accent"
                     Command="{Binding BackCommand}"
                     Content="⬅ Назад" />
                 <TextBlock
+                    Margin="0,0,0,8"
                     VerticalAlignment="Center"
-                    FontSize="20"
+                    FontSize="24"
                     FontWeight="Bold"
                     Text="Налаштування" />
+                <!--  Поля налаштувань  -->
+                <StackPanel Orientation="Vertical" Spacing="12">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock
+                            Width="120"
+                            VerticalAlignment="Center"
+                            Text="Тема:" />
+                        <ComboBox
+                            Width="200"
+                            ItemsSource="{Binding Themes}"
+                            SelectedItem="{Binding Theme}" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock
+                            Width="120"
+                            VerticalAlignment="Center"
+                            Text="Мова:" />
+                        <ComboBox
+                            Width="200"
+                            ItemsSource="{Binding Languages}"
+                            SelectedItem="{Binding Language}" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock
+                            Width="120"
+                            VerticalAlignment="Center"
+                            Text="Папка медіа:" />
+                        <TextBox
+                            Width="300"
+                            Text="{Binding MediaFolderPath, UpdateSourceTrigger=PropertyChanged}"
+                            Watermark="Шлях до папки" />
+                        <Button
+                            Width="36"
+                            Height="36"
+                            Margin="8,0,0,0"
+                            Command="{Binding SelectMediaFolderCommand}"
+                            Content="📂"
+                            ToolTip.Tip="Обрати директорію" />
+                    </StackPanel>
+                    <!--  Додаємо кнопки імпорту/експорту  -->
+                    <StackPanel
+                        Margin="0,12,0,0"
+                        Orientation="Horizontal"
+                        Spacing="8">
+                        <Button
+                            Width="120"
+                            Command="{Binding ExportConfigCommand}"
+                            Content="Експортувати" />
+                        <Button
+                            Width="120"
+                            Command="{Binding ImportConfigCommand}"
+                            Content="Імпортувати" />
+                    </StackPanel>
+                </StackPanel>
             </StackPanel>
-            <!--  Поля налаштувань  -->
-            <StackPanel Orientation="Vertical" Spacing="12">
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <TextBlock
-                        Width="120"
-                        VerticalAlignment="Center"
-                        Text="Тема:" />
-                    <ComboBox
-                        Width="200"
-                        ItemsSource="{Binding Themes}"
-                        SelectedItem="{Binding Theme}" />
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <TextBlock
-                        Width="120"
-                        VerticalAlignment="Center"
-                        Text="Мова:" />
-                    <ComboBox
-                        Width="200"
-                        ItemsSource="{Binding Languages}"
-                        SelectedItem="{Binding Language}" />
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <TextBlock
-                        Width="120"
-                        VerticalAlignment="Center"
-                        Text="Папка медіа:" />
-                    <TextBox
-                        Width="300"
-                        Text="{Binding MediaFolderPath, UpdateSourceTrigger=PropertyChanged}"
-                        Watermark="Шлях до папки" />
-                    <Button
-                        Width="36"
-                        Height="36"
-                        Margin="8,0,0,0"
-                        Command="{Binding SelectMediaFolderCommand}"
-                        Content="📂"
-                        ToolTip.Tip="Обрати директорію" />
-                </StackPanel>
-                <!--  Додаємо кнопки імпорту/експорту  -->
-                <StackPanel
-                    Margin="0,12,0,0"
-                    Orientation="Horizontal"
-                    Spacing="8">
-                    <Button
-                        Width="120"
-                        Command="{Binding ExportConfigCommand}"
-                        Content="Експортувати" />
-                    <Button
-                        Width="120"
-                        Command="{Binding ImportConfigCommand}"
-                        Content="Імпортувати" />
-                </StackPanel>
-            </StackPanel>
-        </StackPanel>
+        </ScrollViewer>
     </Border>
 </UserControl>

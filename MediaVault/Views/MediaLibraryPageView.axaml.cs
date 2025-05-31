@@ -1,7 +1,12 @@
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Platform.Storage;
 using Avalonia.Interactivity;
 using MediaVault.ViewModels;
+using Avalonia.LogicalTree;
+using Avalonia.VisualTree;
+using System.Linq;
+using Avalonia;
 
 namespace MediaVault.Views
 {

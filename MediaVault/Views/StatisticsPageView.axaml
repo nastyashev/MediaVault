@@ -5,245 +5,239 @@
     xmlns:local="clr-namespace:MediaVault.Views"
     xmlns:vm="clr-namespace:MediaVault.ViewModels"
     x:DataType="vm:StatisticsPageViewModel">
-    <UserControl.Resources>
-        <!--  Видаліть ці рядки, якщо конвертери оголошені у .axaml.cs  -->
-        <!--
-        <local:HoursToHeightConverter x:Key="HoursToHeightConverter" />
-        <local:GenreToColorConverter x:Key="GenreToColorConverter" />
-        -->
-    </UserControl.Resources>
-    <ScrollViewer>
-        <StackPanel Margin="0,0,0,8" Spacing="8">
-            <!--  Header  -->
-            <StackPanel
-                Margin="0,10,0,0"
-                VerticalAlignment="Center"
-                Orientation="Horizontal"
-                Spacing="8">
+    <Border
+        Margin="20"
+        Padding="20"
+        HorizontalAlignment="Stretch"
+        VerticalAlignment="Stretch"
+        Background="{DynamicResource ThemeBackgroundBrush}"
+        BorderBrush="{DynamicResource ThemeBorderBrush}"
+        BorderThickness="1"
+        CornerRadius="12">
+        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="0,0,0,8" Spacing="8">
                 <Button
-                    Width="36"
-                    Height="36"
-                    Margin="5,0,0,0"
+                    Width="110"
+                    Margin="0,0,0,0"
                     HorizontalAlignment="Left"
+                    Classes="accent"
                     Command="{Binding BackCommand}"
-                    Content="⬅"
-                    FontSize="18"
-                    ToolTip.Tip="Повернутися назад" />
+                    Content="⬅ Назад" />
                 <TextBlock
                     Margin="0,0,0,0"
                     VerticalAlignment="Center"
                     FontSize="24"
                     FontWeight="Bold"
                     Text="Статистика" />
-            </StackPanel>
-            <StackPanel
-                Margin="12,0,0,0"
-                Orientation="Horizontal"
-                Spacing="8">
-                <ComboBox
-                    x:Name="ExportFormatComboBox"
-                    Width="100"
-                    ItemsSource="{Binding ExportFormats}"
-                    SelectedIndex="0"
-                    SelectedItem="{Binding SelectedExportFormat, Mode=TwoWay}"
-                    ToolTip.Tip="Оберіть формат експорту" />
-                <Button
-                    Command="{Binding ExportReportCommand}"
-                    CommandParameter="{Binding SelectedExportFormat}"
-                    Content="Експорт"
-                    ToolTip.Tip="Експортувати звіт" />
-            </StackPanel>
-            <StackPanel
-                Margin="10,5,10,0"
-                VerticalAlignment="Center"
-                Orientation="Horizontal"
-                Spacing="8">
-                <TextBlock
-                    Margin="16,0,0,0"
+                <StackPanel
+                    Margin="12,0,0,0"
+                    Orientation="Horizontal"
+                    Spacing="8">
+                    <ComboBox
+                        x:Name="ExportFormatComboBox"
+                        Width="100"
+                        ItemsSource="{Binding ExportFormats}"
+                        SelectedIndex="0"
+                        SelectedItem="{Binding SelectedExportFormat, Mode=TwoWay}"
+                        ToolTip.Tip="Оберіть формат експорту" />
+                    <Button
+                        Command="{Binding ExportReportCommand}"
+                        CommandParameter="{Binding SelectedExportFormat}"
+                        Content="Експорт"
+                        ToolTip.Tip="Експортувати звіт" />
+                </StackPanel>
+                <StackPanel
+                    Margin="10,5,10,0"
                     VerticalAlignment="Center"
-                    Text="Рік:" />
-                <ComboBox
-                    Width="80"
-                    ItemsSource="{Binding AvailableYears}"
-                    SelectedItem="{Binding SelectedYear}"
-                    ToolTip.Tip="Оберіть рік для перегляду статистики" />
-            </StackPanel>
+                    Orientation="Horizontal"
+                    Spacing="8">
+                    <TextBlock
+                        Margin="16,0,0,0"
+                        VerticalAlignment="Center"
+                        Text="Рік:" />
+                    <ComboBox
+                        Width="80"
+                        ItemsSource="{Binding AvailableYears}"
+                        SelectedItem="{Binding SelectedYear}"
+                        ToolTip.Tip="Оберіть рік для перегляду статистики" />
+                </StackPanel>
 
-            <Separator Margin="0,8,0,0" />
+                <Separator Margin="0,8,0,0" />
 
-            <!--  Щомісячний графік  -->
-            <StackPanel
-                Margin="10,5,10,0"
-                VerticalAlignment="Center"
-                Orientation="Horizontal"
-                Spacing="8">
+                <!--  Щомісячний графік  -->
+                <StackPanel
+                    Margin="10,5,10,0"
+                    VerticalAlignment="Center"
+                    Orientation="Horizontal"
+                    Spacing="8">
+                    <TextBlock
+                        FontSize="16"
+                        FontWeight="Bold"
+                        Text="Щомісячний час (годин)" />
+                </StackPanel>
+                <ScrollViewer
+                    Height="180"
+                    Margin="10,0,10,0"
+                    HorizontalScrollBarVisibility="Auto"
+                    VerticalScrollBarVisibility="Disabled">
+                    <ItemsControl ItemsSource="{Binding MonthlyStatistics}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="vm:MonthlyStatistic">
+                                <StackPanel
+                                    Margin="2,0"
+                                    VerticalAlignment="Bottom"
+                                    ToolTip.Tip="{Binding Month}">
+                                    <TextBlock
+                                        HorizontalAlignment="Center"
+                                        FontSize="10"
+                                        Text="{Binding TotalHours}" />
+                                    <Border
+                                        Width="24"
+                                        Height="{Binding TotalHours, Converter={StaticResource HoursToHeightConverter}}"
+                                        VerticalAlignment="Bottom"
+                                        Background="#4A90E2"
+                                        CornerRadius="4,4,0,0" />
+                                    <TextBlock
+                                        Margin="0,2,0,0"
+                                        HorizontalAlignment="Center"
+                                        FontSize="10"
+                                        Text="{Binding Month}" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+
+                <Separator Margin="0,8,0,0" />
+
+                <!--  Добовий розподіл  -->
                 <TextBlock
+                    Margin="10,10,10,5"
                     FontSize="16"
                     FontWeight="Bold"
-                    Text="Щомісячний час (годин)" />
-            </StackPanel>
-            <ScrollViewer
-                Height="180"
-                Margin="10,0,10,0"
-                HorizontalScrollBarVisibility="Auto"
-                VerticalScrollBarVisibility="Disabled">
-                <ItemsControl ItemsSource="{Binding MonthlyStatistics}">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <StackPanel Orientation="Horizontal" />
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate DataType="vm:MonthlyStatistic">
-                            <StackPanel
-                                Margin="2,0"
-                                VerticalAlignment="Bottom"
-                                ToolTip.Tip="{Binding Month}">
-                                <TextBlock
-                                    HorizontalAlignment="Center"
-                                    FontSize="10"
-                                    Text="{Binding TotalHours}" />
-                                <Border
-                                    Width="24"
-                                    Height="{Binding TotalHours, Converter={StaticResource HoursToHeightConverter}}"
+                    Text="Добовий розподіл (годин)" />
+                <StackPanel
+                    Margin="10,0,10,5"
+                    Orientation="Horizontal"
+                    Spacing="8">
+                    <TextBlock VerticalAlignment="Center" Text="Період:" />
+                    <DatePicker
+                        Width="130"
+                        SelectedDate="{Binding PeriodStart}"
+                        ToolTip.Tip="Початок періоду" />
+                    <TextBlock VerticalAlignment="Center" Text="—" />
+                    <DatePicker
+                        Width="130"
+                        SelectedDate="{Binding PeriodEnd}"
+                        ToolTip.Tip="Кінець періоду" />
+                </StackPanel>
+                <ScrollViewer
+                    Height="180"
+                    Margin="10,0,10,0"
+                    HorizontalScrollBarVisibility="Auto"
+                    VerticalScrollBarVisibility="Disabled">
+                    <ItemsControl ItemsSource="{Binding DailyIntervalStatistics}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="vm:DailyIntervalStatistic">
+                                <StackPanel
+                                    Margin="2,0"
                                     VerticalAlignment="Bottom"
-                                    Background="#4A90E2"
-                                    CornerRadius="4,4,0,0" />
-                                <TextBlock
-                                    Margin="0,2,0,0"
-                                    HorizontalAlignment="Center"
-                                    FontSize="10"
-                                    Text="{Binding Month}" />
-                            </StackPanel>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </ScrollViewer>
+                                    ToolTip.Tip="{Binding Interval}">
+                                    <TextBlock
+                                        HorizontalAlignment="Center"
+                                        FontSize="10"
+                                        Text="{Binding TotalHours}" />
+                                    <Border
+                                        Width="24"
+                                        Height="{Binding TotalHours, Converter={StaticResource HoursToHeightConverter}}"
+                                        VerticalAlignment="Bottom"
+                                        Background="#E26A4A"
+                                        CornerRadius="4,4,0,0" />
+                                    <TextBlock
+                                        Margin="0,2,0,0"
+                                        HorizontalAlignment="Center"
+                                        FontSize="10"
+                                        Text="{Binding Interval}" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
 
-            <Separator Margin="0,8,0,0" />
+                <Separator Margin="0,8,0,0" />
 
-            <!--  Добовий розподіл  -->
-            <TextBlock
-                Margin="10,10,10,5"
-                FontSize="16"
-                FontWeight="Bold"
-                Text="Добовий розподіл (годин)" />
-            <StackPanel
-                Margin="10,0,10,5"
-                Orientation="Horizontal"
-                Spacing="8">
-                <TextBlock VerticalAlignment="Center" Text="Період:" />
-                <DatePicker
-                    Width="130"
-                    SelectedDate="{Binding PeriodStart}"
-                    ToolTip.Tip="Початок періоду" />
-                <TextBlock VerticalAlignment="Center" Text="—" />
-                <DatePicker
-                    Width="130"
-                    SelectedDate="{Binding PeriodEnd}"
-                    ToolTip.Tip="Кінець періоду" />
-            </StackPanel>
-            <ScrollViewer
-                Height="180"
-                Margin="10,0,10,0"
-                HorizontalScrollBarVisibility="Auto"
-                VerticalScrollBarVisibility="Disabled">
-                <ItemsControl ItemsSource="{Binding DailyIntervalStatistics}">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <StackPanel Orientation="Horizontal" />
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate DataType="vm:DailyIntervalStatistic">
-                            <StackPanel
-                                Margin="2,0"
-                                VerticalAlignment="Bottom"
-                                ToolTip.Tip="{Binding Interval}">
-                                <TextBlock
-                                    HorizontalAlignment="Center"
-                                    FontSize="10"
-                                    Text="{Binding TotalHours}" />
-                                <Border
-                                    Width="24"
-                                    Height="{Binding TotalHours, Converter={StaticResource HoursToHeightConverter}}"
-                                    VerticalAlignment="Bottom"
-                                    Background="#E26A4A"
-                                    CornerRadius="4,4,0,0" />
-                                <TextBlock
-                                    Margin="0,2,0,0"
-                                    HorizontalAlignment="Center"
-                                    FontSize="10"
-                                    Text="{Binding Interval}" />
-                            </StackPanel>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </ScrollViewer>
-
-            <Separator Margin="0,8,0,0" />
-
-            <!--  Популярність жанрів  -->
-            <TextBlock
-                Margin="10,10,10,5"
-                FontSize="16"
-                FontWeight="Bold"
-                Text="Популярність жанрів" />
-            <StackPanel
-                Margin="10,0,10,0"
-                Orientation="Horizontal"
-                Spacing="24">
-                <Canvas
-                    Width="160"
-                    Height="160"
-                    Margin="0,0,0,0">
+                <!--  Популярність жанрів  -->
+                <TextBlock
+                    Margin="10,10,10,5"
+                    FontSize="16"
+                    FontWeight="Bold"
+                    Text="Популярність жанрів" />
+                <StackPanel
+                    Margin="10,0,10,0"
+                    Orientation="Horizontal"
+                    Spacing="24">
+                    <Canvas
+                        Width="160"
+                        Height="160"
+                        Margin="0,0,0,0">
+                        <ItemsControl ItemsSource="{Binding GenreStatistics}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <Panel />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="vm:GenreStatistic">
+                                    <Path
+                                        Data="{Binding PathData}"
+                                        Fill="{Binding Genre, Converter={StaticResource GenreToColorConverter}}"
+                                        StrokeThickness="0"
+                                        ToolTip.Tip="{Binding Genre}" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Canvas>
                     <ItemsControl ItemsSource="{Binding GenreStatistics}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
-                                <Panel />
+                                <StackPanel Orientation="Vertical" Spacing="4" />
                             </ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate DataType="vm:GenreStatistic">
-                                <Path
-                                    Data="{Binding PathData}"
-                                    Fill="{Binding Genre, Converter={StaticResource GenreToColorConverter}}"
-                                    StrokeThickness="0"
-                                    ToolTip.Tip="{Binding Genre}" />
+                                <StackPanel
+                                    Margin="0,2"
+                                    VerticalAlignment="Center"
+                                    Orientation="Horizontal"
+                                    Spacing="6">
+                                    <Ellipse
+                                        Width="16"
+                                        Height="16"
+                                        Fill="{Binding Genre, Converter={StaticResource GenreToColorConverter}}" />
+                                    <TextBlock
+                                        FontSize="12"
+                                        FontWeight="Bold"
+                                        Text="{Binding Genre}" />
+                                    <TextBlock
+                                        FontSize="12"
+                                        Foreground="Gray"
+                                        Text="{Binding Percent, StringFormat='{}{0}%'}" />
+                                </StackPanel>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
-                </Canvas>
-                <ItemsControl ItemsSource="{Binding GenreStatistics}">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <StackPanel Orientation="Vertical" Spacing="4" />
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate DataType="vm:GenreStatistic">
-                            <StackPanel
-                                Margin="0,2"
-                                VerticalAlignment="Center"
-                                Orientation="Horizontal"
-                                Spacing="6">
-                                <Ellipse
-                                    Width="16"
-                                    Height="16"
-                                    Fill="{Binding Genre, Converter={StaticResource GenreToColorConverter}}" />
-                                <TextBlock
-                                    FontSize="12"
-                                    FontWeight="Bold"
-                                    Text="{Binding Genre}" />
-                                <TextBlock
-                                    FontSize="12"
-                                    Foreground="Gray"
-                                    Text="{Binding Percent, StringFormat='{}{0}%'}" />
-                            </StackPanel>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                </StackPanel>
             </StackPanel>
-        </StackPanel>
-    </ScrollViewer>
+        </ScrollViewer>
+    </Border>
 </UserControl>

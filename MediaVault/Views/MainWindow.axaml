@@ -35,6 +35,7 @@
 		</DataTemplate>
 	</Window.DataTemplates>
 
+	<!--  No changes needed; visual style is handled by child views.  -->
 
 	<ContentControl Content="{Binding CurrentPage}" />
 </Window>

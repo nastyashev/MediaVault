@@ -48,6 +48,7 @@ namespace MediaVault.ViewModels
                 if (_selectedPlaylist != value)
                 {
                     _selectedPlaylist = value;
+                    UpdatePlaylistMediaFiles();
                     OnPropertyChanged(nameof(SelectedPlaylist));
                     OnPropertyChanged(nameof(PlaylistMediaFiles));
                     // Оновити стан команд для кнопок додавання/видалення
@@ -57,15 +58,19 @@ namespace MediaVault.ViewModels
             }
         }
 
-        public ObservableCollection<MediaFile> PlaylistMediaFiles
+        private ObservableCollection<MediaFile> _playlistMediaFiles = new ObservableCollection<MediaFile>();
+        public ObservableCollection<MediaFile> PlaylistMediaFiles => _playlistMediaFiles;
+
+        private void UpdatePlaylistMediaFiles()
         {
-            get
+            _playlistMediaFiles.Clear();
+            if (SelectedPlaylist != null)
             {
-                if (SelectedPlaylist == null)
-                    return new ObservableCollection<MediaFile>();
                 var files = _allMediaFiles.Where(m => SelectedPlaylist.FileIds.Contains(m.FilePath)).ToList();
-                return new ObservableCollection<MediaFile>(files);
+                foreach (var f in files)
+                    _playlistMediaFiles.Add(f);
             }
+            OnPropertyChanged(nameof(PlaylistMediaFiles));
         }
 
         public ICommand CreatePlaylistCommand { get; }
@@ -898,7 +903,7 @@ namespace MediaVault.ViewModels
             {
                 SelectedPlaylist.FileIds.Add(SelectedMediaFile.FilePath);
                 SavePlaylists();
-                OnPropertyChanged(nameof(PlaylistMediaFiles));
+                UpdatePlaylistMediaFiles();
                 // Динамічно оновити стан кнопок
                 (AddToPlaylistCommand as RelayCommand)?.RaiseCanExecuteChanged();
                 (RemoveFromPlaylistCommand as RelayCommand)?.RaiseCanExecuteChanged();
@@ -911,7 +916,7 @@ namespace MediaVault.ViewModels
             {
                 SelectedPlaylist.FileIds.Remove(SelectedMediaFile.FilePath);
                 SavePlaylists();
-                OnPropertyChanged(nameof(PlaylistMediaFiles));
+                UpdatePlaylistMediaFiles();
                 // Динамічно оновити стан кнопок
                 (AddToPlaylistCommand as RelayCommand)?.RaiseCanExecuteChanged();
                 (RemoveFromPlaylistCommand as RelayCommand)?.RaiseCanExecuteChanged();

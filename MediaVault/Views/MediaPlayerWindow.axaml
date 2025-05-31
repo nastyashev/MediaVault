@@ -20,21 +20,31 @@
             VerticalAlignment="Stretch" />
         <Border
             Grid.Row="1"
-            Background="#80000000"
+            Margin="24"
+            Padding="20,16,20,24"
+            Background="#CC22272E"
+            CornerRadius="16"
             IsHitTestVisible="{Binding ControlsVisible}"
             IsVisible="{Binding ControlsVisible}">
             <StackPanel
-                Margin="10"
                 HorizontalAlignment="Stretch"
-                Orientation="Vertical">
-                <Grid Margin="0,0,0,0" ColumnDefinitions="Auto,*,Auto">
+                Orientation="Vertical"
+                Spacing="14">
+                <Grid
+                    Height="32"
+                    VerticalAlignment="Stretch"
+                    ColumnDefinitions="Auto,*,Auto">
                     <TextBlock
                         Grid.Column="0"
-                        Margin="0,0,8,0"
+                        Margin="0,0,14,0"
                         VerticalAlignment="Center"
+                        FontSize="14"
+                        FontWeight="SemiBold"
+                        Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"
                         Text="{Binding PositionString}" />
                     <Slider
                         Grid.Column="1"
+                        Height="48"
                         Margin="0"
                         VerticalAlignment="Center"
                         IsEnabled="{Binding IsSeekable}"
@@ -43,29 +53,43 @@
                         Value="{Binding Position, Mode=TwoWay}" />
                     <TextBlock
                         Grid.Column="2"
-                        Margin="8,0,0,0"
+                        Margin="14,0,0,0"
                         VerticalAlignment="Center"
+                        FontSize="14"
+                        FontWeight="SemiBold"
+                        Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"
                         Text="{Binding DurationString}" />
                 </Grid>
                 <Grid
-                    Margin="0,5,0,0"
                     HorizontalAlignment="Stretch"
+                    VerticalAlignment="Center"
                     ColumnDefinitions="*,Auto,*">
                     <TextBlock
                         Grid.Column="0"
-                        Margin="0,0,10,0"
+                        Margin="0,0,18,0"
                         VerticalAlignment="Center"
-                        Text="{Binding Title}" />
+                        FontSize="16"
+                        FontWeight="Bold"
+                        Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"
+                        Text="{Binding Title}"
+                        TextTrimming="CharacterEllipsis" />
                     <StackPanel
                         Grid.Column="2"
-                        Margin="0,0,0,0"
+                        Margin="0"
                         HorizontalAlignment="Right"
                         VerticalAlignment="Center"
                         Orientation="Horizontal"
-                        Spacing="5">
-                        <TextBlock VerticalAlignment="Center" Text="{Binding Volume}" />
+                        Spacing="10">
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            FontSize="13"
+                            FontWeight="Medium"
+                            Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"
+                            Text="{Binding Volume}" />
                         <Slider
-                            Width="100"
+                            Width="110"
+                            Height="48"
+                            Margin="0"
                             VerticalAlignment="Center"
                             Maximum="100"
                             Minimum="0"
@@ -77,38 +101,74 @@
                         HorizontalAlignment="Center"
                         VerticalAlignment="Center"
                         Orientation="Horizontal"
-                        Spacing="0">
-                        <Button Margin="5,0,0,0" Command="{Binding PlayCommand}">
-                            <Path
-                                Width="16"
-                                Height="16"
-                                Data="M2,2 L14,8 L2,14 Z"
-                                Fill="Black"
-                                Stretch="Uniform" />
-                        </Button>
-                        <Button Margin="5,0,0,0" Command="{Binding PauseCommand}">
-                            <StackPanel Orientation="Horizontal" Spacing="2">
-                                <Rectangle
-                                    Width="4"
-                                    Height="16"
-                                    Fill="Black" />
-                                <Rectangle
-                                    Width="4"
-                                    Height="16"
-                                    Fill="Black" />
-                            </StackPanel>
-                        </Button>
+                        Spacing="15">
+
                         <Button
-                            Margin="5,0,0,0"
-                            Command="{Binding ToggleFullScreenCommand}"
-                            ToolTip.Tip="На весь екран">
-                            <Path
-                                Width="16"
-                                Height="16"
-                                Data="M2,6 L2,2 L6,2 M10,2 L14,2 L14,6 M14,10 L14,14 L10,14 M6,14 L2,14 L2,10"
-                                Fill="Black"
-                                Stretch="Uniform" />
+                            Width="50"
+                            Height="50"
+                            Padding="0"
+                            Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                            Command="{Binding PlayCommand}"
+                            CornerRadius="25"
+                            ToolTip.Tip="Відтворити">
+                            <Grid>
+                                <Viewbox
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Stretch="Uniform">
+                                    <Path
+                                        Width="24"
+                                        Height="24"
+                                        Data="M6,4 L18,12 L6,20 Z"
+                                        Fill="{DynamicResource SystemControlForegroundBaseHighBrush}" />
+                                </Viewbox>
+                            </Grid>
                         </Button>
+
+                        <Button
+                            Width="50"
+                            Height="50"
+                            Padding="0"
+                            Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                            Command="{Binding PauseCommand}"
+                            CornerRadius="25"
+                            ToolTip.Tip="Пауза">
+                            <Grid>
+                                <Viewbox
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Stretch="Uniform">
+                                    <Path
+                                        Width="24"
+                                        Height="24"
+                                        Data="M7,4 H11 V20 H7 Z M13,4 H17 V20 H13 Z"
+                                        Fill="{DynamicResource SystemControlForegroundBaseHighBrush}" />
+                                </Viewbox>
+                            </Grid>
+                        </Button>
+
+                        <Button
+                            Width="50"
+                            Height="50"
+                            Padding="0"
+                            Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                            Command="{Binding ToggleFullScreenCommand}"
+                            CornerRadius="25"
+                            ToolTip.Tip="На весь екран">
+                            <Grid>
+                                <Path
+                                    Width="24"
+                                    Height="24"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Data="M4,9 V4 H9 M16,4 H20 V9 M4,15 V20 H9 M16,20 H20 V15"
+                                    Fill="Transparent"
+                                    Stretch="Uniform"
+                                    Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}"
+                                    StrokeThickness="2" />
+                            </Grid>
+                        </Button>
+
                     </StackPanel>
                 </Grid>
             </StackPanel>
