@@ -236,11 +236,16 @@ namespace MediaVault.ViewModels
                     var imported = (ConfigModel?)serializer.Deserialize(stream);
                     if (imported != null)
                     {
+                        string oldMediaFolderPath = _config.MediaFolderPath;
                         _config = imported;
                         SaveConfig();
                         OnPropertyChanged(nameof(Theme));
                         OnPropertyChanged(nameof(Language));
                         OnPropertyChanged(nameof(MediaFolderPath));
+                        if (_config.MediaFolderPath != oldMediaFolderPath)
+                        {
+                            MediaFolderPathChanged?.Invoke(this, _config.MediaFolderPath);
+                        }
                     }
                 }
                 catch
