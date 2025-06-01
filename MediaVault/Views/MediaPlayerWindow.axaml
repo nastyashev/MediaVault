@@ -102,7 +102,6 @@
                         VerticalAlignment="Center"
                         Orientation="Horizontal"
                         Spacing="15">
-
                         <Button
                             Width="50"
                             Height="50"
@@ -124,7 +123,6 @@
                                 </Viewbox>
                             </Grid>
                         </Button>
-
                         <Button
                             Width="50"
                             Height="50"
@@ -146,7 +144,6 @@
                                 </Viewbox>
                             </Grid>
                         </Button>
-
                         <Button
                             Width="50"
                             Height="50"
@@ -168,7 +165,6 @@
                                     StrokeThickness="2" />
                             </Grid>
                         </Button>
-
                     </StackPanel>
                 </Grid>
             </StackPanel>

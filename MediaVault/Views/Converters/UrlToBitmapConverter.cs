@@ -3,6 +3,7 @@ using Avalonia.Data.Converters;
 using Avalonia.Media.Imaging;
 using System;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Net.Http;
@@ -33,7 +34,6 @@ namespace MediaVault.Views.Converters
                 }
                 else if (path.StartsWith("http", StringComparison.OrdinalIgnoreCase))
                 {
-                    // Синхронно чекаємо на завантаження (НЕ рекомендується для великих картинок, але для preview підійде)
                     using var client = new HttpClient();
                     var bytes = client.GetByteArrayAsync(path).GetAwaiter().GetResult();
                     using var ms = new MemoryStream(bytes);
@@ -44,7 +44,7 @@ namespace MediaVault.Views.Converters
             }
             catch
             {
-                // ignore errors
+                Debug.WriteLine($"Failed to load image from {path}");
             }
 
             return Placeholder;

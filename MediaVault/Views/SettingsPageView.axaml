@@ -28,7 +28,6 @@
                     FontSize="24"
                     FontWeight="Bold"
                     Text="Налаштування" />
-                <!--  Поля налаштувань  -->
                 <StackPanel Orientation="Vertical" Spacing="12">
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <TextBlock
@@ -67,7 +66,6 @@
                             Content="📂"
                             ToolTip.Tip="Обрати директорію" />
                     </StackPanel>
-                    <!--  Додаємо кнопки імпорту/експорту  -->
                     <StackPanel
                         Margin="0,12,0,0"
                         Orientation="Horizontal"

@@ -3,13 +3,10 @@ using Avalonia.Data.Converters;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using Avalonia.Data;
 using Avalonia.Media;
 using Avalonia.Input;
-using Avalonia.Interactivity;
-using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform.Storage;
-using System.Threading.Tasks; // Ensure Task is imported
+using System.Threading.Tasks;
 
 namespace MediaVault.Views
 {
@@ -19,32 +16,20 @@ namespace MediaVault.Views
         {
             InitializeComponent();
 
-            // Додаємо конвертер у ресурси, якщо потрібно
             if (!this.Resources.ContainsKey("HoursToHeightConverter"))
                 this.Resources.Add("HoursToHeightConverter", new HoursToHeightConverter());
             if (!this.Resources.ContainsKey("GenreToColorConverter"))
                 this.Resources.Add("GenreToColorConverter", new GenreToColorConverter());
 
-            // Підписка на подію для діалогу збереження (асинхронна версія)
-            if (DataContext is MediaVault.ViewModels.StatisticsPageViewModel vm)
+            if (DataContext is ViewModels.StatisticsPageViewModel vm)
             {
                 vm.SaveFileDialogRequested += ShowSaveFileDialogAsync;
             }
             this.DataContextChanged += (_, _) =>
             {
-                if (this.DataContext is MediaVault.ViewModels.StatisticsPageViewModel vm2)
+                if (this.DataContext is ViewModels.StatisticsPageViewModel vm2)
                     vm2.SaveFileDialogRequested += ShowSaveFileDialogAsync;
             };
-        }
-
-        private void ExportButton_PointerPressed(object? sender, PointerPressedEventArgs e)
-        {
-            if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed && sender is Button btn && btn.ContextMenu != null)
-            {
-                btn.ContextMenu.PlacementTarget = btn;
-                btn.ContextMenu.Open();
-                e.Handled = true;
-            }
         }
 
         private async Task<string?> ShowSaveFileDialogAsync(string defaultFileName, string? format, string? _)
@@ -53,15 +38,24 @@ namespace MediaVault.Views
             if (window == null || window.StorageProvider is null)
                 return null;
 
-            var fileTypes = new List<FilePickerFileType>
-            {
-                new FilePickerFileType("PDF")
-                {
-                    Patterns = ["*.pdf"],
-                    MimeTypes = ["application/pdf"]
-                }
-            };
+            var fileTypes = new List<FilePickerFileType>();
 
+            if (string.Equals(format, "pdf", StringComparison.OrdinalIgnoreCase))
+            {
+                fileTypes.Add(new FilePickerFileType("PDF")
+                {
+                    Patterns = new[] { "*.pdf" },
+                    MimeTypes = new[] { "application/pdf" }
+                });
+            }
+            else if (string.Equals(format, "xlsx", StringComparison.OrdinalIgnoreCase))
+            {
+                fileTypes.Add(new FilePickerFileType("Excel")
+                {
+                    Patterns = new[] { "*.xlsx" },
+                    MimeTypes = new[] { "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }
+                });
+            }
 
             var options = new FilePickerSaveOptions
             {
@@ -78,7 +72,6 @@ namespace MediaVault.Views
         {
             public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
             {
-                // Масштабуємо: 1 година = 8 пікселів, мінімум 10 пікселів
                 if (value is double hours)
                     return Math.Max(10, hours * 8);
                 if (value is int intHours)
@@ -121,7 +114,6 @@ namespace MediaVault.Views
                     color = Palette[GenreColors.Count % Palette.Count];
                     GenreColors[genre] = color;
                 }
-                // Повертаємо SolidColorBrush замість Color
                 return new SolidColorBrush(color);
             }
 

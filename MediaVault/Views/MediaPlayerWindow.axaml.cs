@@ -1,10 +1,7 @@
 using System;
-using System.Timers;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Markup.Xaml;
 using MediaVault.Models;
-using LibVLCSharp.Shared;
 using MediaVault.ViewModels;
 using Avalonia.Threading;
 
@@ -32,11 +29,10 @@ public partial class MediaPlayerWindow : Window
         this.PointerEntered += MediaPlayerWindow_PointerMoved;
         this.PointerExited += MediaPlayerWindow_PointerExited;
 
-        // Слідкуємо за зміною WindowState для оновлення IsFullScreen
-        this.GetObservable(Window.WindowStateProperty).Subscribe(state =>
+        this.GetObservable(WindowStateProperty).Subscribe(state =>
         {
             if (DataContext is MediaPlayerViewModel mvm)
-                mvm.IsFullScreen = (state == WindowState.FullScreen);
+                mvm.IsFullScreen = state == WindowState.FullScreen;
             UpdateControlsVisibility();
         });
     }
@@ -53,7 +49,7 @@ public partial class MediaPlayerWindow : Window
     {
         var viewModel = (MediaPlayerViewModel)DataContext!;
         VideoView.MediaPlayer = viewModel.MediaPlayer;
-        viewModel.PlayCommand.Execute(null); // Додаємо автозапуск
+        viewModel.PlayCommand.Execute(null);
         UpdateControlsVisibility();
     }
 
@@ -94,7 +90,7 @@ public partial class MediaPlayerWindow : Window
     {
         if (_hideControlsTimer == null)
         {
-            _hideControlsTimer = new System.Timers.Timer(2000); // 2 секунди
+            _hideControlsTimer = new System.Timers.Timer(2000);
             _hideControlsTimer.Elapsed += (s, e) =>
             {
                 Dispatcher.UIThread.Post(() =>
