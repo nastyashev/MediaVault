@@ -11,13 +11,13 @@ namespace MediaVault.Models
     public class ViewingHistoryRecord
     {
         public int RecordId { get; set; }
-        public string FileId { get; set; } = string.Empty; // file path
+        public string FileId { get; set; } = string.Empty;
         public string FileName { get; set; } = string.Empty;
         public DateTime ViewDate { get; set; }
-        public int Duration { get; set; } // seconds
-        public int EndTime { get; set; } // seconds
+        public int Duration { get; set; }
+        public int EndTime { get; set; }
         public string Status { get; set; } = string.Empty;
-        public string Genre { get; set; } = string.Empty; // додано жанр
+        public string Genre { get; set; } = string.Empty;
     }
 
     [Serializable]
@@ -39,7 +39,7 @@ namespace MediaVault.Models
             if (!File.Exists(FilePath))
             {
                 var log = new ViewingHistoryLog();
-                log.Save(); // Створити порожній файл одразу
+                log.Save();
                 return log;
             }
 

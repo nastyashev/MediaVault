@@ -11,7 +11,6 @@ namespace MediaVault.ViewModels
             ViewingHistoryViewModel = MediaLibraryPageViewModel.ViewingHistoryViewModel;
             StatisticsPageViewModel = new StatisticsPageViewModel();
 
-            // Додаємо сторінку налаштувань
             SettingsPageViewModel = new SettingsPageViewModel();
 
             MediaLibraryPageViewModel.ShowViewingHistoryRequested += OnShowViewingHistoryRequested;
@@ -19,7 +18,6 @@ namespace MediaVault.ViewModels
             MediaLibraryPageViewModel.ShowStatisticsRequested += OnShowStatisticsRequested;
             StatisticsPageViewModel.BackToLibraryRequested += OnBackToLibraryRequested;
 
-            // Додаємо обробник для переходу до налаштувань
             MediaLibraryPageViewModel.ShowSettingsRequested += OnShowSettingsRequested;
             SettingsPageViewModel.BackToLibraryRequested += OnBackToLibraryRequested;
 
@@ -31,8 +29,8 @@ namespace MediaVault.ViewModels
         public StatisticsPageViewModel StatisticsPageViewModel { get; }
         public SettingsPageViewModel SettingsPageViewModel { get; }
 
-        private object _currentPage;
-        public object CurrentPage
+        private object? _currentPage;
+        public object? CurrentPage
         {
             get => _currentPage;
             set => SetProperty(ref _currentPage, value);

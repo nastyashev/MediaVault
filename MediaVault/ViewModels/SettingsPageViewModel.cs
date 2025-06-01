@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Windows.Input;
 using System.Xml.Serialization;
@@ -20,10 +21,10 @@ namespace MediaVault.ViewModels
 
         private ConfigModel _config = new ConfigModel();
 
-        private List<string> _themes = new List<string> { "Default" };
+        private readonly List<string> _themes = new List<string> { "Default" };
         public IEnumerable<string> Themes => _themes;
 
-        private List<string> _languages = new List<string> { "Українська" };
+        private readonly List<string> _languages = new List<string> { "Українська" };
         public IEnumerable<string> Languages => _languages;
 
         public string Theme
@@ -68,7 +69,6 @@ namespace MediaVault.ViewModels
             }
         }
 
-        // Додаємо метод для зовнішнього оновлення шляху
         public void UpdateMediaFolderPath(string newPath)
         {
             if (MediaFolderPath != newPath)
@@ -95,7 +95,11 @@ namespace MediaVault.ViewModels
                 {
                     using var stream = File.OpenRead(ConfigFilePath);
                     var serializer = new XmlSerializer(typeof(ConfigModel));
-                    _config = (ConfigModel)serializer.Deserialize(stream) ?? new ConfigModel();
+                    var deserialized = serializer.Deserialize(stream) as ConfigModel;
+                    if (deserialized != null)
+                        _config = deserialized;
+                    else
+                        _config = new ConfigModel();
                 }
                 else
                 {
@@ -108,7 +112,6 @@ namespace MediaVault.ViewModels
                 _config = new ConfigModel();
             }
 
-            // Ensure Theme and Language are set to available values if empty
             if (string.IsNullOrWhiteSpace(_config.Theme))
                 _config.Theme = _themes[0];
             if (string.IsNullOrWhiteSpace(_config.Language))
@@ -132,26 +135,30 @@ namespace MediaVault.ViewModels
             }
             catch
             {
-                // ignore errors
+                Debug.WriteLine("Помилка при збереженні конфігурації");
             }
         }
 
         private async System.Threading.Tasks.Task OnSelectMediaFolder()
         {
-            // Avalonia-specific dialog, works only if called from UI thread and with ApplicationLifetime
             var lifetime = Avalonia.Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime;
             var mainWindow = lifetime?.MainWindow;
             if (mainWindow == null)
                 return;
 
-            var dialog = new Avalonia.Controls.OpenFolderDialog
+            var storageProvider = mainWindow.StorageProvider;
+            if (storageProvider == null)
+                return;
+
+            var folders = await storageProvider.OpenFolderPickerAsync(new Avalonia.Platform.Storage.FolderPickerOpenOptions
             {
-                Title = "Оберіть папку для медіа"
-            };
-            var folder = await dialog.ShowAsync(mainWindow);
-            if (!string.IsNullOrEmpty(folder))
+                Title = "Оберіть папку для медіа",
+                AllowMultiple = false
+            });
+
+            if (folders != null && folders.Count > 0)
             {
-                MediaFolderPath = folder;
+                MediaFolderPath = folders[0].Path.LocalPath;
             }
         }
 
@@ -162,24 +169,34 @@ namespace MediaVault.ViewModels
             if (mainWindow == null)
                 return;
 
-            var dialog = new Avalonia.Controls.SaveFileDialog
+            var storageProvider = mainWindow.StorageProvider;
+            if (storageProvider == null)
+                return;
+
+            var file = await storageProvider.SaveFilePickerAsync(new Avalonia.Platform.Storage.FilePickerSaveOptions
             {
                 Title = "Експортувати налаштування",
-                InitialFileName = "config.xml",
-                Filters = { new Avalonia.Controls.FileDialogFilter { Name = "XML файли", Extensions = { "xml" } } }
-            };
-            var path = await dialog.ShowAsync(mainWindow);
-            if (!string.IsNullOrEmpty(path))
+                SuggestedFileName = "config.xml",
+                FileTypeChoices = new List<Avalonia.Platform.Storage.FilePickerFileType>
+                {
+                    new Avalonia.Platform.Storage.FilePickerFileType("XML файли")
+                    {
+                        Patterns = new[] { "*.xml" }
+                    }
+                }
+            });
+
+            if (file != null)
             {
                 try
                 {
-                    using var stream = File.Create(path);
+                    await using var stream = await file.OpenWriteAsync();
                     var serializer = new XmlSerializer(typeof(ConfigModel));
                     serializer.Serialize(stream, _config);
                 }
                 catch
                 {
-                    // ignore errors
+                    Debug.WriteLine("Помилка при експорті конфігурації");
                 }
             }
         }
@@ -191,18 +208,28 @@ namespace MediaVault.ViewModels
             if (mainWindow == null)
                 return;
 
-            var dialog = new Avalonia.Controls.OpenFileDialog
+            var storageProvider = mainWindow.StorageProvider;
+            if (storageProvider == null)
+                return;
+
+            var files = await storageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions
             {
                 Title = "Імпортувати налаштування",
                 AllowMultiple = false,
-                Filters = { new Avalonia.Controls.FileDialogFilter { Name = "XML файли", Extensions = { "xml" } } }
-            };
-            var files = await dialog.ShowAsync(mainWindow);
-            if (files != null && files.Length > 0 && File.Exists(files[0]))
+                FileTypeFilter = new List<Avalonia.Platform.Storage.FilePickerFileType>
+                {
+                    new Avalonia.Platform.Storage.FilePickerFileType("XML файли")
+                    {
+                        Patterns = ["*.xml"]
+                    }
+                }
+            });
+
+            if (files != null && files.Count > 0)
             {
                 try
                 {
-                    using var stream = File.OpenRead(files[0]);
+                    await using var stream = await files[0].OpenReadAsync();
                     var serializer = new XmlSerializer(typeof(ConfigModel));
                     var imported = (ConfigModel?)serializer.Deserialize(stream);
                     if (imported != null)
@@ -216,7 +243,7 @@ namespace MediaVault.ViewModels
                 }
                 catch
                 {
-                    // ignore errors
+                    Debug.WriteLine("Помилка при імпорті конфігурації");
                 }
             }
         }

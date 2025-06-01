@@ -1,8 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.ComponentModel;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using Avalonia.Media.Imaging;
 
@@ -65,31 +62,6 @@ namespace MediaVault.Models
             UserNotes = string.Empty;
             _coverImagePath = string.Empty;
             AddedDate = DateTime.Now;
-        }
-
-        public async Task LoadCoverAsync()
-        {
-            if (!string.IsNullOrEmpty(CoverImagePath))
-            {
-                try
-                {
-                    if (CoverImagePath.StartsWith("http", StringComparison.OrdinalIgnoreCase))
-                    {
-                        using var client = new System.Net.Http.HttpClient();
-                        var stream = await client.GetStreamAsync(CoverImagePath);
-                        Cover = await Task.Run(() => Bitmap.DecodeToWidth(stream, 256));
-                    }
-                    else if (System.IO.File.Exists(CoverImagePath))
-                    {
-                        await using var stream = System.IO.File.OpenRead(CoverImagePath);
-                        Cover = await Task.Run(() => Bitmap.DecodeToWidth(stream, 256));
-                    }
-                }
-                catch
-                {
-                    // ignore errors
-                }
-            }
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

@@ -10,10 +10,7 @@ using MediaVault.Models;
 using TMDbLib.Client;
 using System.Collections.Generic;
 using Avalonia.Threading;
-using TMDbLib.Objects.General;
-using TMDbLib.Objects.Movies;
-using MediaVault.ViewModels; // додайте цей using, якщо потрібно
-using MediaVault.Views; // додайте цей using для доступу до UrlToBitmapConverter
+using TagLib;
 
 namespace MediaVault.ViewModels
 {
@@ -26,16 +23,15 @@ namespace MediaVault.ViewModels
         private static readonly string LibraryDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data");
         private static readonly string LibraryFilePath = Path.Combine(LibraryDirectory, "library.xml");
         private static readonly string PlaylistsFilePath = Path.Combine(LibraryDirectory, "playlists.xml");
+        private const string TmdbImageBaseUrl = "https://image.tmdb.org/t/p/w500";
+        private const string PlaceholderImagePath = "Assets/placeholder.png";
 
-        // Додаємо ViewModel для історії перегляду
         public ViewingHistoryViewModel ViewingHistoryViewModel { get; } = new ViewingHistoryViewModel();
 
-        // Додаємо подію для перемикання на історію перегляду
         public event EventHandler? ShowViewingHistoryRequested;
         public event EventHandler? ShowStatisticsRequested;
-        public event EventHandler? ShowSettingsRequested; // додати подію
+        public event EventHandler? ShowSettingsRequested;
 
-        // Колекція плейлистів
         public ObservableCollection<Playlist> Playlists { get; } = new ObservableCollection<Playlist>();
 
         private Playlist? _selectedPlaylist;
@@ -48,7 +44,6 @@ namespace MediaVault.ViewModels
                 {
                     UpdatePlaylistMediaFiles();
                     OnPropertyChanged(nameof(PlaylistMediaFiles));
-                    // Оновити стан команд для кнопок додавання/видалення
                     (AddToPlaylistCommand as RelayCommand)?.RaiseCanExecuteChanged();
                     (RemoveFromPlaylistCommand as RelayCommand)?.RaiseCanExecuteChanged();
                 }
@@ -76,7 +71,7 @@ namespace MediaVault.ViewModels
 
         public MediaLibraryPageViewModel()
         {
-            _tmdbClient = new TMDbClient("7354fcc62bb407139f5fcd0e5b62a435"); // Вставте TMDB API Key
+            _tmdbClient = new TMDbClient("7354fcc62bb407139f5fcd0e5b62a435");
             MediaFiles = new ObservableCollection<MediaFile>();
             Categories = new ObservableCollection<string> { "All", "Movies", "Series", "Music" };
             _isListView = true;
@@ -84,7 +79,6 @@ namespace MediaVault.ViewModels
 
             SettingsCommand = new RelayCommand(_ => OnSettings());
             ScanDirectoryCommand = new RelayCommand(_ => OnScanDirectory());
-            SearchCommand = new RelayCommand(_ => OnSearch());
             ShowViewingHistoryCommand = new RelayCommand(_ => ShowViewingHistory());
             ShowStatisticsCommand = new RelayCommand(_ => ShowStatistics());
             EditMediaCommand = new RelayCommand(EditMedia);
@@ -98,24 +92,17 @@ namespace MediaVault.ViewModels
                 _ => SelectedPlaylist != null && SelectedMediaFile != null && SelectedPlaylist.FileIds.Contains(SelectedMediaFile.FilePath)
             );
 
-            // Ensure Data directory exists
             if (!Directory.Exists(LibraryDirectory))
                 Directory.CreateDirectory(LibraryDirectory);
 
-            // Load library from file if exists
-            if (File.Exists(LibraryFilePath))
+            if (System.IO.File.Exists(LibraryFilePath))
             {
                 LoadLibraryAndDisplay();
             }
-
-            // Завантажити жанри з TMDb
             LoadGenresFromTmdb();
-
-            // Завантажити плейлисти з файлу
             LoadPlaylists();
         }
 
-        public string Greeting { get; } = "Welcome to Avalonia!";
         public ObservableCollection<MediaFile> MediaFiles { get; }
         public ObservableCollection<string> Categories { get; }
 
@@ -126,7 +113,6 @@ namespace MediaVault.ViewModels
             {
                 if (SetProperty(ref _selectedMediaFile, value))
                 {
-                    // Оновити стан команд для кнопок додавання/видалення
                     (AddToPlaylistCommand as RelayCommand)?.RaiseCanExecuteChanged();
                     (RemoveFromPlaylistCommand as RelayCommand)?.RaiseCanExecuteChanged();
                 }
@@ -138,9 +124,9 @@ namespace MediaVault.ViewModels
             get => _isListView;
             set
             {
-                if (SetProperty(ref _isListView, value))
+                if (SetProperty(ref _isListView, value) && _isListView)
                 {
-                    if (_isListView) IsGalleryView = false;
+                    IsGalleryView = false;
                 }
             }
         }
@@ -150,22 +136,22 @@ namespace MediaVault.ViewModels
             get => _isGalleryView;
             set
             {
-                if (SetProperty(ref _isGalleryView, value))
+                if (SetProperty(ref _isGalleryView, value) && _isGalleryView)
                 {
-                    if (_isGalleryView) IsListView = false;
+                    IsListView = false;
                 }
             }
         }
 
         public ICommand SettingsCommand { get; }
         public ICommand ScanDirectoryCommand { get; }
-        public ICommand SearchCommand { get; }
         public ICommand ShowViewingHistoryCommand { get; }
         public ICommand ShowStatisticsCommand { get; }
         public ICommand EditMediaCommand { get; }
 
         private string? _selectedGenre;
-        public ObservableCollection<string> AvailableGenres { get; } = new ObservableCollection<string> { "Всі жанри" };
+        private const string AllGenresLiteral = "Всі жанри";
+        public ObservableCollection<string> AvailableGenres { get; } = new ObservableCollection<string> { AllGenresLiteral };
 
         public string? SelectedGenre
         {
@@ -179,16 +165,7 @@ namespace MediaVault.ViewModels
             }
         }
 
-        public enum SortOption
-        {
-            None,
-            DateAddedAsc,
-            DateAddedDesc,
-            ReleaseYearAsc,
-            ReleaseYearDesc,
-            DurationAsc,
-            DurationDesc
-        }
+
 
         private SortOption _selectedSortOption = SortOption.None;
         public ObservableCollection<string> SortOptions { get; } = new ObservableCollection<string>
@@ -243,7 +220,7 @@ namespace MediaVault.ViewModels
             }
         }
 
-        private List<MediaFile> _allMediaFiles = new List<MediaFile>();
+        private readonly List<MediaFile> _allMediaFiles = new List<MediaFile>();
 
         public async Task ScanDirectory(string path)
         {
@@ -268,9 +245,19 @@ namespace MediaVault.ViewModels
                     {
                         Dispatcher.UIThread.Post(() =>
                         {
-                            // Додаємо дату додавання та тривалість (якщо можливо)
                             mediaFile.AddedDate = DateTime.Now;
-                            // mediaFile.Duration = ... // тут можна додати визначення тривалості, якщо реалізовано
+                            mediaFile.Duration = TimeSpan.Zero;
+
+                            try
+                            {
+                                using var tagFile = TagLib.File.Create(file);
+                                mediaFile.Duration = tagFile.Properties.Duration;
+                                mediaFile.Duration = tagFile.Properties.Duration;
+                            }
+                            catch
+                            {
+                                mediaFile.Duration = TimeSpan.Zero;
+                            }
 
                             MediaFiles.Add(mediaFile);
                             _allMediaFiles.Add(mediaFile);
@@ -296,7 +283,7 @@ namespace MediaVault.ViewModels
             }
         }
 
-        private void SaveLibraryToXml(List<LibraryEntry> entries, string filePath)
+        private static void SaveLibraryToXml(List<LibraryEntry> entries, string filePath)
         {
             try
             {
@@ -317,32 +304,22 @@ namespace MediaVault.ViewModels
             }
         }
 
-        private List<LibraryEntry> LoadLibraryFromXml(string filePath)
+        private static List<LibraryEntry> LoadLibraryFromXml(string filePath)
         {
             try
             {
-                if (!File.Exists(filePath)) return new List<LibraryEntry>();
+                if (!System.IO.File.Exists(filePath)) return new List<LibraryEntry>();
                 var serializer = new XmlSerializer(typeof(List<LibraryEntry>));
                 using (var stream = new FileStream(filePath, FileMode.Open))
                 {
-                    return (List<LibraryEntry>)serializer.Deserialize(stream);
+                    var result = serializer.Deserialize(stream) as List<LibraryEntry>;
+                    return result ?? new List<LibraryEntry>();
                 }
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error loading library: {ex.Message}");
                 return new List<LibraryEntry>();
-            }
-        }
-
-        public void Search(string searchTerm)
-        {
-            for (int i = MediaFiles.Count - 1; i >= 0; i--)
-            {
-                if (!MediaFiles[i].Title.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
-                {
-                    MediaFiles.RemoveAt(i);
-                }
             }
         }
 
@@ -362,7 +339,6 @@ namespace MediaVault.ViewModels
 
         public void FilterByCategory(string category)
         {
-            // Логіка фільтрації категорій (приклад з простим порівнянням)
             var filteredFiles = MediaFiles.Where(file => category == "All" || file.Genre.Equals(category, StringComparison.OrdinalIgnoreCase)).ToList();
             MediaFiles.Clear();
 
@@ -372,15 +348,14 @@ namespace MediaVault.ViewModels
             }
         }
 
-        private MediaVault.Models.MediaType GetMediaType(string filePath)
+        private static MediaType GetMediaType(string filePath)
         {
             var ext = Path.GetExtension(filePath).ToLowerInvariant();
             if (ext == ".mp4" || ext == ".avi" || ext == ".mkv" || ext == ".mov")
-                return MediaVault.Models.MediaType.Video;
-            return MediaVault.Models.MediaType.Audio;
+                return MediaType.Video;
+            return MediaType.Audio;
         }
 
-        // Змініть сигнатуру і додайте логування
         private async Task UpdateMediaDetailsFromTMDb(MediaFile mediaFile, string searchTitle)
         {
             try
@@ -392,31 +367,30 @@ namespace MediaVault.ViewModels
                 if (movie != null)
                 {
                     Debug.WriteLine($"[TMDb] Found: {movie.Title} (ID: {movie.Id})");
-                    var movieDetails = await _tmdbClient.GetMovieAsync(movie.Id);
-                    mediaFile.Genre = string.Join(", ", movieDetails.Genres.Select(g => g.Name));
-                    if (!string.IsNullOrEmpty(movieDetails.PosterPath))
-                        mediaFile.CoverImagePath = "https://image.tmdb.org/t/p/w500" + movieDetails.PosterPath;
+                    if (!string.IsNullOrEmpty(movie.PosterPath))
+                        mediaFile.CoverImagePath = TmdbImageBaseUrl + movie.PosterPath;
                     else
-                        mediaFile.CoverImagePath = "Assets/placeholder.png"; // локальна заглушка
-                    mediaFile.ReleaseYear = movieDetails.ReleaseDate?.Year ?? 0;
+                        mediaFile.CoverImagePath = PlaceholderImagePath;
+                    mediaFile.ReleaseYear = movie.ReleaseDate?.Year ?? 0;
+                    Debug.WriteLine($"[TMDb] Genre: {mediaFile.Genre}, Year: {mediaFile.ReleaseYear}, Cover: {mediaFile.CoverImagePath}");
                     Debug.WriteLine($"[TMDb] Genre: {mediaFile.Genre}, Year: {mediaFile.ReleaseYear}, Cover: {mediaFile.CoverImagePath}");
                 }
                 else
                 {
                     Debug.WriteLine($"[TMDb] No movie found for '{searchTitle}'");
-                    mediaFile.CoverImagePath = "Assets/placeholder.png"; // локальна заглушка
+                    mediaFile.CoverImagePath = PlaceholderImagePath;
                 }
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error fetching data from TMDb: {ex.Message}");
-                mediaFile.CoverImagePath = "Assets/placeholder.png"; // локальна заглушка
+                mediaFile.CoverImagePath = PlaceholderImagePath;
             }
         }
 
         public void PlaySelectedMedia()
         {
-            if (SelectedMediaFile != null && File.Exists(SelectedMediaFile.FilePath))
+            if (SelectedMediaFile != null && System.IO.File.Exists(SelectedMediaFile.FilePath))
             {
                 var mediaPlayerWindow = new MediaPlayerWindow(SelectedMediaFile);
                 mediaPlayerWindow.Show();
@@ -430,24 +404,23 @@ namespace MediaVault.ViewModels
 
         private async void OnScanDirectory()
         {
-            var dialog = new Avalonia.Controls.OpenFolderDialog
-            {
-                Title = "Оберіть директорію для сканування"
-            };
-
             var mainWindow = Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
                 ? desktop.MainWindow
                 : null;
 
             if (mainWindow != null)
             {
-                var folder = await dialog.ShowAsync(mainWindow);
-                if (!string.IsNullOrEmpty(folder))
+                var folders = await mainWindow.StorageProvider.OpenFolderPickerAsync(new Avalonia.Platform.Storage.FolderPickerOpenOptions
                 {
-                    // Зберігаємо обрану директорію у config.xml
-                    SaveMediaFolderPathToConfig(folder);
+                    Title = "Оберіть директорію для сканування",
+                    AllowMultiple = false
+                });
 
-                    await ScanDirectory(folder);
+                var folder = folders?.FirstOrDefault();
+                if (folder != null)
+                {
+                    SaveMediaFolderPathToConfig(folder.Path.LocalPath);
+                    await ScanDirectory(folder.Path.LocalPath);
                 }
             }
         }
@@ -461,28 +434,26 @@ namespace MediaVault.ViewModels
                 if (!Directory.Exists(dataDir))
                     Directory.CreateDirectory(dataDir);
 
-                MediaVault.Models.ConfigModel config;
-                var serializer = new XmlSerializer(typeof(MediaVault.Models.ConfigModel));
-                if (File.Exists(configPath))
+                ConfigModel config;
+                var serializer = new XmlSerializer(typeof(ConfigModel));
+                if (System.IO.File.Exists(configPath))
                 {
-                    using var stream = File.OpenRead(configPath);
-                    config = (MediaVault.Models.ConfigModel?)serializer.Deserialize(stream) ?? new MediaVault.Models.ConfigModel();
+                    using var stream = System.IO.File.OpenRead(configPath);
+                    config = (ConfigModel?)serializer.Deserialize(stream) ?? new ConfigModel();
                 }
                 else
                 {
-                    config = new MediaVault.Models.ConfigModel();
+                    config = new ConfigModel();
                 }
                 config.MediaFolderPath = folderPath;
-                using var writeStream = File.Create(configPath);
+                using var writeStream = System.IO.File.Create(configPath);
                 serializer.Serialize(writeStream, config);
 
-                // Оновлюємо поле у ViewModel налаштувань, якщо воно є
                 if (App.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop)
                 {
                     foreach (var window in desktop.Windows)
                     {
-                        // Шукаємо SettingsPageViewModel серед DataContext відкритих вікон (або збережіть посилання іншим способом)
-                        if (window.DataContext is MediaVault.ViewModels.MainWindowViewModel mainVm)
+                        if (window.DataContext is MainWindowViewModel mainVm)
                         {
                             mainVm.SettingsPageViewModel?.UpdateMediaFolderPath(folderPath);
                         }
@@ -490,18 +461,14 @@ namespace MediaVault.ViewModels
                 }
                 else
                 {
-                    // Якщо є прямий доступ до SettingsPageViewModel, наприклад через DI або статичне поле:
-                    // SettingsPageViewModel?.UpdateMediaFolderPath(folderPath);
-                    ViewingHistoryViewModel?.GetType(); // just to avoid warning if not used
+                    ViewingHistoryViewModel?.GetType();
                 }
             }
             catch
             {
-                // ignore errors
+                Debug.WriteLine("Не вдалося зберегти шлях до медіа директорії у конфігурації.");
             }
         }
-
-        private void OnSearch() { /* ... */ }
 
         private void ShowViewingHistory()
         {
@@ -518,38 +485,20 @@ namespace MediaVault.ViewModels
             ViewingHistoryViewModel.IsViewingHistoryVisible = false;
         }
 
-        // Допоміжний клас для XML
-        public class LibraryEntry
-        {
-            public string file_id { get; set; }
-            public string title { get; set; }
-            public string genre { get; set; }
-            public DateTime added_date { get; set; }
-            public string metadata { get; set; }
-        }
-
-        // --- Модель плейлиста ---
-        public class Playlist
-        {
-            public string Id { get; set; }
-            public string Name { get; set; }
-            public List<string> FileIds { get; set; } = new List<string>();
-        }
-
         private async void LoadGenresFromTmdb()
         {
             try
             {
-                var genres = await _tmdbClient.GetMovieGenresAsync();
+                var genreResult = await _tmdbClient.GetMovieGenresAsync();
                 Dispatcher.UIThread.Post(() =>
                 {
                     AvailableGenres.Clear();
-                    AvailableGenres.Add("Всі жанри");
-                    foreach (var genre in genres)
+                    AvailableGenres.Add(AllGenresLiteral);
+                    foreach (var genre in genreResult)
                     {
                         AvailableGenres.Add(genre.Name);
                     }
-                    SelectedGenre = "Всі жанри";
+                    SelectedGenre = AllGenresLiteral;
                 });
             }
             catch (Exception ex)
@@ -567,72 +516,78 @@ namespace MediaVault.ViewModels
         {
             IEnumerable<MediaFile> filtered = _allMediaFiles;
 
-            // Фільтрація за жанром
-            if (!string.IsNullOrEmpty(SelectedGenre) && SelectedGenre != "Всі жанри")
-            {
-                filtered = filtered.Where(m => m.Genre != null && m.Genre.Split(',').Select(g => g.Trim()).Contains(SelectedGenre));
-            }
+            filtered = ApplyGenreFilter(filtered);
+            filtered = ApplyStatusFilter(filtered);
+            filtered = ApplySearchFilter(filtered);
 
-            // Фільтрація за статусом перегляду
+            filtered = ApplySort(filtered);
+
+            MediaFiles.Clear();
+            foreach (var file in filtered)
+                MediaFiles.Add(file);
+        }
+
+        private IEnumerable<MediaFile> ApplyGenreFilter(IEnumerable<MediaFile> files)
+        {
+            if (!string.IsNullOrEmpty(SelectedGenre) && SelectedGenre != AllGenresLiteral)
+            {
+                return files.Where(m => m.Genre != null && m.Genre.Split(',').Select(g => g.Trim()).Contains(SelectedGenre));
+            }
+            return files;
+        }
+
+        private IEnumerable<MediaFile> ApplyStatusFilter(IEnumerable<MediaFile> files)
+        {
             if (!string.IsNullOrEmpty(SelectedStatusFilter) && SelectedStatusFilter != "Всі статуси")
             {
-                // Підготуємо історію для швидкого пошуку
                 var history = MediaVault.Models.ViewingHistoryLog.Load();
                 var lastStatusByFile = history.Records
                     .GroupBy(r => r.FileId)
                     .Select(g => new { FileId = g.Key, Last = g.OrderByDescending(r => r.ViewDate).FirstOrDefault() })
                     .ToDictionary(x => x.FileId, x => x.Last?.Status);
 
-                filtered = filtered.Where(m =>
+                return files.Where(m =>
                 {
                     if (!lastStatusByFile.TryGetValue(m.FilePath, out var status))
-                    {
-                        // Якщо запису немає, це "Не почато"
                         return SelectedStatusFilter == "Не почато";
-                    }
                     if (status == "переглянуто")
                         return SelectedStatusFilter == "Переглянуто";
                     if (status == "в процесі")
                         return SelectedStatusFilter == "В процесі";
-                    // fallback
                     return false;
                 });
             }
+            return files;
+        }
 
-            // Фільтрація за пошуком
+        private IEnumerable<MediaFile> ApplySearchFilter(IEnumerable<MediaFile> files)
+        {
             if (!string.IsNullOrWhiteSpace(SearchText))
             {
-                filtered = filtered.Where(m => m.Title != null && m.Title.Contains(SearchText, StringComparison.OrdinalIgnoreCase));
+                return files.Where(m => m.Title != null && m.Title.Contains(SearchText, StringComparison.OrdinalIgnoreCase));
             }
+            return files;
+        }
 
-            // Сортування
+        private IEnumerable<MediaFile> ApplySort(IEnumerable<MediaFile> files)
+        {
             switch (_selectedSortOption)
             {
                 case SortOption.DateAddedAsc:
-                    filtered = filtered.OrderBy(m => m.AddedDate);
-                    break;
+                    return files.OrderBy(m => m.AddedDate);
                 case SortOption.DateAddedDesc:
-                    filtered = filtered.OrderByDescending(m => m.AddedDate);
-                    break;
+                    return files.OrderByDescending(m => m.AddedDate);
                 case SortOption.ReleaseYearAsc:
-                    filtered = filtered.OrderBy(m => m.ReleaseYear);
-                    break;
+                    return files.OrderBy(m => m.ReleaseYear);
                 case SortOption.ReleaseYearDesc:
-                    filtered = filtered.OrderByDescending(m => m.ReleaseYear);
-                    break;
+                    return files.OrderByDescending(m => m.ReleaseYear);
                 case SortOption.DurationAsc:
-                    filtered = filtered.OrderBy(m => m.Duration);
-                    break;
+                    return files.OrderBy(m => m.Duration);
                 case SortOption.DurationDesc:
-                    filtered = filtered.OrderByDescending(m => m.Duration);
-                    break;
+                    return files.OrderByDescending(m => m.Duration);
                 default:
-                    break;
+                    return files;
             }
-
-            MediaFiles.Clear();
-            foreach (var file in filtered)
-                MediaFiles.Add(file);
         }
 
         private void ApplyGenreFilter()
@@ -644,7 +599,7 @@ namespace MediaVault.ViewModels
         {
             MediaFiles.Clear();
             _allMediaFiles.Clear();
-            var entries = LoadLibraryFromXml(LibraryFilePath);
+            var entries = MediaLibraryPageViewModel.LoadLibraryFromXml(LibraryFilePath);
             foreach (var entry in entries)
             {
                 var mf = LibraryEntryToMediaFile(entry);
@@ -670,35 +625,28 @@ namespace MediaVault.ViewModels
 
         private static int ParseReleaseYearFromMetadata(string metadata)
         {
-            // metadata format: "ReleaseYear: {year}, Cover: {cover}"
             if (string.IsNullOrEmpty(metadata)) return 0;
             var parts = metadata.Split(',');
-            foreach (var part in parts)
-            {
-                if (part.Trim().StartsWith("ReleaseYear:"))
-                {
-                    var val = part.Split(':')[1].Trim();
-                    if (int.TryParse(val, out int year))
-                        return year;
-                }
-            }
+            var yearPart = parts
+                .Where(part => part.Trim().StartsWith("ReleaseYear:"))
+                .Select(part => part.Split(':')[1].Trim())
+                .FirstOrDefault();
+
+            if (yearPart != null && int.TryParse(yearPart, out int year))
+                return year;
             return 0;
         }
 
-        private string ParseCoverFromMetadata(string metadata)
+        private static string ParseCoverFromMetadata(string metadata)
         {
             if (string.IsNullOrEmpty(metadata)) return string.Empty;
             var parts = metadata.Split(',');
-            foreach (var part in parts)
-            {
-                var trimmed = part.Trim();
-                if (trimmed.StartsWith("Cover:"))
-                {
-                    var val = trimmed.Substring("Cover:".Length).Trim();
-                    return val;
-                }
-            }
-            return string.Empty;
+            var coverPart = parts
+                .Where(part => part.Trim().StartsWith("Cover:"))
+                .Select(part => part.Split(':')[1].Trim())
+                .FirstOrDefault();
+
+            return coverPart ?? string.Empty;
         }
 
         private static TimeSpan ParseDurationFromMetadata(string metadata)
@@ -711,7 +659,7 @@ namespace MediaVault.ViewModels
                 if (trimmed.StartsWith("Duration:"))
                 {
                     var val = trimmed.Substring("Duration:".Length).Trim();
-                    if (TimeSpan.TryParse(val, out var ts))
+                    if (TimeSpan.TryParse(val, System.Globalization.CultureInfo.InvariantCulture, out var ts))
                         return ts;
                 }
             }
@@ -722,12 +670,10 @@ namespace MediaVault.ViewModels
         {
             if (parameter is MediaFile mediaFile)
             {
-                // Простий діалог для редагування (жанр, рік, обкладинка)
                 var window = Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
                     ? desktop.MainWindow
                     : null;
 
-                // 1. Запит нового жанру
                 var genreDialog = new Avalonia.Controls.Window
                 {
                     Title = "Редагувати жанр",
@@ -824,13 +770,9 @@ namespace MediaVault.ViewModels
                     entry.metadata = $"ReleaseYear: {mediaFile.ReleaseYear}, Cover: {mediaFile.CoverImagePath}, Duration: {mediaFile.Duration}";
                 }
                 SaveLibraryToXml(entries, LibraryFilePath);
-
-                // Оновлюємо відображення
                 ApplySortAndFilter();
             }
         }
-
-        // --- Методи для роботи з плейлистами ---
 
         public void CreatePlaylist(string name)
         {
@@ -885,7 +827,6 @@ namespace MediaVault.ViewModels
                 SelectedPlaylist.FileIds.Add(SelectedMediaFile.FilePath);
                 SavePlaylists();
                 UpdatePlaylistMediaFiles();
-                // Динамічно оновити стан кнопок
                 (AddToPlaylistCommand as RelayCommand)?.RaiseCanExecuteChanged();
                 (RemoveFromPlaylistCommand as RelayCommand)?.RaiseCanExecuteChanged();
             }
@@ -898,7 +839,6 @@ namespace MediaVault.ViewModels
                 SelectedPlaylist.FileIds.Remove(SelectedMediaFile.FilePath);
                 SavePlaylists();
                 UpdatePlaylistMediaFiles();
-                // Динамічно оновити стан кнопок
                 (AddToPlaylistCommand as RelayCommand)?.RaiseCanExecuteChanged();
                 (RemoveFromPlaylistCommand as RelayCommand)?.RaiseCanExecuteChanged();
             }
@@ -914,14 +854,17 @@ namespace MediaVault.ViewModels
                     serializer.Serialize(stream, Playlists.ToList());
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error saving playlists: {ex.Message}");
+            }
         }
 
         private void LoadPlaylists()
         {
             try
             {
-                if (!File.Exists(PlaylistsFilePath)) return;
+                if (!System.IO.File.Exists(PlaylistsFilePath)) return;
                 var serializer = new XmlSerializer(typeof(List<Playlist>));
                 using (var stream = new FileStream(PlaylistsFilePath, FileMode.Open))
                 {
@@ -931,7 +874,38 @@ namespace MediaVault.ViewModels
                         Playlists.Add(p);
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error loading playlists: {ex.Message}");
+            }
+        }
+
+        public class LibraryEntry
+        {
+            public string? file_id { get; set; }
+            public string? title { get; set; }
+            public string? genre { get; set; }
+            public DateTime added_date { get; set; }
+            public string? metadata { get; set; }
+        }
+
+        public class Playlist
+        {
+            public string? Id { get; set; }
+            public string? Name { get; set; }
+            public List<string>? FileIds { get; set; } = new List<string>();
+        }
+
+        public enum SortOption
+        {
+            None,
+            DateAddedAsc,
+            DateAddedDesc,
+            ReleaseYearAsc,
+            ReleaseYearDesc,
+            DurationAsc,
+            DurationDesc
         }
     }
+
 }

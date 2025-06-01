@@ -1,43 +1,39 @@
 using System;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.Windows.Input;
 using System.IO;
 using System.Linq;
 using System.Xml.Linq;
-using System.Reflection;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Diagnostics;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
-using QuestPDF.Drawing; // For ICanvas
-using QuestPDF.Helpers; // For Colors
-using QuestPDF.Previewer;
 using System.Threading.Tasks;
-using OfficeOpenXml; // Add this at the top (requires EPPlus NuGet package)
+using OfficeOpenXml;
+using DynamicData;
 
 namespace MediaVault.ViewModels
 {
     public class MonthlyStatistic
     {
-        public string Month { get; set; }
+        public string? Month { get; set; }
         public double TotalHours { get; set; }
     }
 
     public class DailyIntervalStatistic
     {
-        public string Interval { get; set; }
+        public string? Interval { get; set; }
         public double TotalHours { get; set; }
     }
 
     public class GenreStatistic
     {
-        public string Genre { get; set; }
+        public string? Genre { get; set; }
         public double Percent { get; set; }
         public double TotalHours { get; set; }
-        public string PathData { get; set; } // SVG path for pie sector
+        public string? PathData { get; set; }
     }
 
     public class StatisticsPageViewModel : ViewModelBase
@@ -98,7 +94,7 @@ namespace MediaVault.ViewModels
             return dataPath;
         }
 
-        private Dictionary<string, string> fileIdToGenre = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, string> fileIdToGenre = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         private static string GetLibraryFilePath()
         {
@@ -107,7 +103,7 @@ namespace MediaVault.ViewModels
             return dataPath;
         }
 
-        private List<dynamic> allRecords = new(); // Зберігаємо всі записи для фільтрації
+        private readonly List<dynamic> allRecords = new();
 
         public ObservableCollection<string> ExportFormats { get; } = new() { "pdf", "excel" };
         private string _selectedExportFormat = "pdf";
@@ -117,7 +113,6 @@ namespace MediaVault.ViewModels
             set => SetProperty(ref _selectedExportFormat, value);
         }
 
-        // Додаємо подію для запиту шляху збереження
         public event Func<string, string, string?, Task<string?>>? SaveFileDialogRequested;
 
         public StatisticsPageViewModel()
@@ -134,9 +129,8 @@ namespace MediaVault.ViewModels
             else
                 SelectedYear = DateTime.Now.Year;
 
-            // Встановлюємо період за замовчуванням на весь рік
-            PeriodStart = new DateTimeOffset(new DateTime(SelectedYear, 1, 1));
-            PeriodEnd = new DateTimeOffset(new DateTime(SelectedYear, 12, 31));
+            PeriodStart = new DateTimeOffset(new DateTime(SelectedYear, 1, 1, 0, 0, 0, DateTimeKind.Local));
+            PeriodEnd = new DateTimeOffset(new DateTime(SelectedYear, 12, 31, 0, 0, 0, DateTimeKind.Local));
 
             LoadMonthlyStatisticsFromHistory();
             LoadDailyIntervalStatistics();
@@ -164,7 +158,7 @@ namespace MediaVault.ViewModels
             }
             catch
             {
-                // ignore errors
+                Debug.WriteLine("Error loading library genres from XML.");
             }
         }
 
@@ -183,11 +177,10 @@ namespace MediaVault.ViewModels
                 var records = doc.Descendants("Record")
                     .Select(r => new
                     {
-                        Date = DateTime.Parse(r.Element("ViewDate")?.Value ?? DateTime.MinValue.ToString()),
+                        Date = DateTime.Parse(r.Element("ViewDate")?.Value ?? DateTime.MinValue.ToString(), CultureInfo.InvariantCulture),
                         DurationSeconds = double.TryParse(r.Element("Duration")?.Value, out var d) ? d : 0,
                         FileId = r.Element("FileId")?.Value ?? "",
                         FileName = r.Element("FileName")?.Value ?? "",
-                        // Додаємо жанр, якщо є в історії, інакше шукаємо в бібліотеці
                         Genre = r.Element("Genre")?.Value
                             ?? (fileIdToGenre.TryGetValue(r.Element("FileId")?.Value ?? "", out var genre) ? genre : "Інше")
                     })
@@ -200,13 +193,12 @@ namespace MediaVault.ViewModels
             }
             catch
             {
-                // ignore
+                Debug.WriteLine("Error loading history records from XML.");
             }
         }
 
         private void LoadMonthlyStatisticsFromHistory()
         {
-            // Замість читання з файлу, використовуємо allRecords і SelectedYear
             var records = allRecords.Where(r => r.Date.Year == SelectedYear).ToList();
 
             MonthlyStatistics.Clear();
@@ -221,11 +213,9 @@ namespace MediaVault.ViewModels
                 });
             }
 
-            // Оновлюємо період, якщо змінився рік
-            PeriodStart = new DateTimeOffset(new DateTime(SelectedYear, 1, 1));
-            PeriodEnd = new DateTimeOffset(new DateTime(SelectedYear, 12, 31));
+            PeriodStart = new DateTimeOffset(new DateTime(SelectedYear, 1, 1, 0, 0, 0, DateTimeKind.Local));
+            PeriodEnd = new DateTimeOffset(new DateTime(SelectedYear, 12, 31, 0, 0, 0, DateTimeKind.Local));
 
-            // Підрахунок жанрів через fileIdToGenre
             var genreStats = records
                 .GroupBy(r =>
                 {
@@ -240,7 +230,7 @@ namespace MediaVault.ViewModels
                 })
                 .ToList();
 
-            double totalSecondsAll = genreStats.Sum(g => (double)g.TotalSeconds);
+            double totalSecondsAll = genreStats.Sum(g => g.TotalSeconds);
             GenreStatistics.Clear();
 
             double startAngle = 0;
@@ -263,20 +253,18 @@ namespace MediaVault.ViewModels
 
         private void LoadDailyIntervalStatistics()
         {
-            // Перевірка на null
             if (PeriodStart == null || PeriodEnd == null)
             {
                 DailyIntervalStatistics.Clear();
                 return;
             }
             var start = PeriodStart.Value.Date;
-            var end = PeriodEnd.Value.Date.AddDays(1).AddTicks(-1); // включно до кінця дня
+            var end = PeriodEnd.Value.Date.AddDays(1).AddTicks(-1);
 
             var records = allRecords
                 .Where(r => r.Date >= start && r.Date <= end)
                 .ToList();
 
-            // Групування по 3 години (8 інтервалів)
             var intervalCount = 8;
             var intervals = Enumerable.Range(0, intervalCount)
                 .Select(i => new
@@ -297,18 +285,20 @@ namespace MediaVault.ViewModels
                 .ToList();
 
             DailyIntervalStatistics.Clear();
-            foreach (var interval in intervals)
-            {
-                var found = dailyGrouped.FirstOrDefault(x => x.Interval == interval.Label);
-                DailyIntervalStatistics.Add(new DailyIntervalStatistic
+            DailyIntervalStatistics.AddRange(
+                intervals.Select(interval =>
                 {
-                    Interval = interval.Label,
-                    TotalHours = found?.TotalHours ?? 0
-                });
-            }
+                    var found = dailyGrouped.FirstOrDefault(x => x.Interval == interval.Label);
+                    return new DailyIntervalStatistic
+                    {
+                        Interval = interval.Label,
+                        TotalHours = found?.TotalHours ?? 0
+                    };
+                })
+            );
         }
 
-        private string GetMonthShortName(int month)
+        private static string GetMonthShortName(int month)
         {
             string[] ukrMonths = { "Січ", "Лют", "Бер", "Кві", "Тра", "Чер", "Лип", "Сер", "Вер", "Жов", "Лис", "Гру" };
             if (month >= 1 && month <= 12)
@@ -316,7 +306,6 @@ namespace MediaVault.ViewModels
             return month.ToString();
         }
 
-        // SVG path for pie sector
         private static string CreatePieSlicePath(double cx, double cy, double r, double startAngle, double sweepAngle)
         {
             if (sweepAngle <= 0)
@@ -326,7 +315,6 @@ namespace MediaVault.ViewModels
 
             if (Math.Abs(sweepAngle - 360.0) < 0.01)
             {
-                // Малюємо повне коло як два півкола
                 double startRad = Math.PI * startAngle / 180.0;
                 double midAngle = startAngle + 180.0;
                 double midRad = Math.PI * midAngle / 180.0;
@@ -393,7 +381,7 @@ namespace MediaVault.ViewModels
             }
         }
 
-        private class ExportData
+        private sealed class ExportData
         {
             public int SelectedYear { get; set; }
             public List<MonthlyStatistic> Monthly { get; set; } = new();
@@ -416,7 +404,7 @@ namespace MediaVault.ViewModels
             };
         }
 
-        private void ExportToPdf(string filePath, ExportData data)
+        private static void ExportToPdf(string filePath, ExportData data)
         {
             try
             {
@@ -436,14 +424,12 @@ namespace MediaVault.ViewModels
 
                             col.Item().Text($"Рік: {data.SelectedYear}");
 
-                            // --- Щомісячний графік (стовпчики) ---
                             col.Item().Text("Щомісячний час (годин):").Bold();
                             col.Item().Text($"Діаграма: сумарний час перегляду по місяцях за {data.SelectedYear} рік.").FontSize(10).FontColor(Colors.Grey.Darken2);
                             col.Item().Element(container =>
                                 container.Height(140).Svg(GenerateMonthlyBarChartSvg(data.Monthly))
                             );
 
-                            // --- Добовий розподіл (стовпчики) ---
                             col.Item().Text("Добовий розподіл часу (годин):").Bold();
                             col.Item().Text(
                                 $"Діаграма: сумарний час перегляду по 3-годинних інтервалах доби за період " +
@@ -453,7 +439,6 @@ namespace MediaVault.ViewModels
                                 container.Height(140).Svg(GenerateDailyIntervalBarChartSvg(data.DailyIntervals))
                             );
 
-                            // --- Кругова діаграма (жанри) ---
                             col.Item().Text("Популярність жанрів:").Bold();
                             col.Item().Text($"Діаграма: розподіл часу перегляду за жанрами за {data.SelectedYear} рік.").FontSize(10).FontColor(Colors.Grey.Darken2);
                             col.Item().Element(container =>
@@ -474,11 +459,8 @@ namespace MediaVault.ViewModels
             }
         }
 
-        // --- SVG chart helpers ---
-
-        private string GenerateMonthlyBarChartSvg(List<MonthlyStatistic> monthly)
+        private static string GenerateMonthlyBarChartSvg(List<MonthlyStatistic> monthly)
         {
-            // SVG size and chart parameters
             int width = 400, height = 120;
             int leftPad = 40, bottomPad = 30, topPad = 10;
             int barWidth = 20, spacing = 10;
@@ -489,10 +471,9 @@ namespace MediaVault.ViewModels
 
             var svg = new System.Text.StringBuilder();
             svg.AppendLine($"<svg width='{width}' height='{height}' xmlns='http://www.w3.org/2000/svg'>");
-            // Axes
             svg.AppendLine($"<line x1='{leftPad}' y1='{height - bottomPad}' x2='{leftPad + chartWidth}' y2='{height - bottomPad}' stroke='gray' stroke-width='1'/>");
             svg.AppendLine($"<line x1='{leftPad}' y1='{height - bottomPad}' x2='{leftPad}' y2='{topPad}' stroke='gray' stroke-width='1'/>");
-            // Bars and labels
+
             for (int i = 0; i < monthly.Count; i++)
             {
                 var m = monthly[i];
@@ -500,16 +481,15 @@ namespace MediaVault.ViewModels
                 double x = leftPad + i * (barWidth + spacing);
                 double y = height - bottomPad - barH;
                 svg.AppendLine($"<rect x='{x}' y='{y}' width='{barWidth}' height='{barH}' fill='#1976d2'/>");
-                // Month label
-                svg.AppendLine($"<text x='{x + barWidth / 2}' y='{height - bottomPad + 12}' font-size='8' text-anchor='middle'>{m.Month.Substring(0, 3)}</text>");
-                // Value label
+                var monthLabel = m.Month != null && m.Month.Length >= 3 ? m.Month.Substring(0, 3) : "";
+                svg.AppendLine($"<text x='{x + barWidth / 2}' y='{height - bottomPad + 12}' font-size='8' text-anchor='middle'>{monthLabel}</text>");
                 svg.AppendLine($"<text x='{x + barWidth / 2}' y='{y - 2}' font-size='8' text-anchor='middle'>{m.TotalHours}</text>");
             }
             svg.AppendLine("</svg>");
             return svg.ToString();
         }
 
-        private string GenerateDailyIntervalBarChartSvg(List<DailyIntervalStatistic> intervals)
+        private static string GenerateDailyIntervalBarChartSvg(List<DailyIntervalStatistic> intervals)
         {
             int width = 400, height = 120;
             int leftPad = 40, bottomPad = 30, topPad = 10;
@@ -530,14 +510,15 @@ namespace MediaVault.ViewModels
                 double x = leftPad + i * (barWidth + spacing);
                 double y = height - bottomPad - barH;
                 svg.AppendLine($"<rect x='{x}' y='{y}' width='{barWidth}' height='{barH}' fill='#ff9800'/>");
-                svg.AppendLine($"<text x='{x + barWidth / 2}' y='{height - bottomPad + 12}' font-size='7' text-anchor='middle'>{d.Interval.Substring(0, 5)}</text>");
+                var intervalLabel = d.Interval != null && d.Interval.Length >= 5 ? d.Interval.Substring(0, 5) : "";
+                svg.AppendLine($"<text x='{x + barWidth / 2}' y='{height - bottomPad + 12}' font-size='7' text-anchor='middle'>{intervalLabel}</text>");
                 svg.AppendLine($"<text x='{x + barWidth / 2}' y='{y - 2}' font-size='8' text-anchor='middle'>{d.TotalHours}</text>");
             }
             svg.AppendLine("</svg>");
             return svg.ToString();
         }
 
-        private string GenerateGenrePieChartSvg(List<GenreStatistic> genres)
+        private static string GenerateGenrePieChartSvg(List<GenreStatistic> genres)
         {
             int width = 170, height = 170;
             double cx = 80, cy = 80, radius = 60;
@@ -552,15 +533,11 @@ namespace MediaVault.ViewModels
             svg.AppendLine($"<svg width='{width}' height='{height}' xmlns='http://www.w3.org/2000/svg'>");
             double startAngle = 0;
             int colorIdx = 0;
-
-            // Special case: only one genre and it is 100%
             var nonZeroGenres = genres.Where(g => g.TotalHours > 0).ToList();
             if (nonZeroGenres.Count == 1)
             {
                 var g = nonZeroGenres[0];
-                // Draw a full circle
                 svg.AppendLine($"<circle cx='{cx}' cy='{cy}' r='{radius}' fill='{palette[0]}' stroke='#444' stroke-width='1'/>");
-                // Label
                 svg.AppendLine($"<text x='{cx}' y='{cy + radius + 20}' font-size='9' text-anchor='middle'>{g.Genre} ({g.Percent}%)</text>");
             }
             else
@@ -570,10 +547,8 @@ namespace MediaVault.ViewModels
                     double sweep = g.TotalHours / total * 360.0;
                     if (sweep <= 0.1) continue;
                     double endAngle = startAngle + sweep;
-                    // Pie slice path
                     string path = DescribeArc(cx, cy, radius, startAngle, endAngle);
                     svg.AppendLine($"<path d='{path}' fill='{palette[colorIdx % palette.Length]}' stroke='#444' stroke-width='1'/>");
-                    // Label
                     double midAngle = startAngle + sweep / 2;
                     double rad = (midAngle - 90) * Math.PI / 180.0;
                     double labelX = cx + Math.Cos(rad) * (radius + 20);
@@ -583,14 +558,12 @@ namespace MediaVault.ViewModels
                     colorIdx++;
                 }
             }
-            // Outline
             svg.AppendLine($"<circle cx='{cx}' cy='{cy}' r='{radius}' fill='none' stroke='#888' stroke-width='1'/>");
             svg.AppendLine("</svg>");
             return svg.ToString();
         }
 
-        // Helper for SVG pie slice
-        private string DescribeArc(double cx, double cy, double r, double startAngle, double endAngle)
+        private static string DescribeArc(double cx, double cy, double r, double startAngle, double endAngle)
         {
             double startRad = Math.PI * startAngle / 180.0;
             double endRad = Math.PI * endAngle / 180.0;
@@ -602,13 +575,12 @@ namespace MediaVault.ViewModels
             return $"M {cx},{cy} L {x1},{y1} A {r},{r} 0 {largeArc} 1 {x2},{y2} Z";
         }
 
-        private void ExportToExcel(string filePath, ExportData data)
+        private static void ExportToExcel(string filePath, ExportData data)
         {
             ExcelPackage.License.SetNonCommercialOrganization("MediaVault");
 
             using (var package = new ExcelPackage())
             {
-                // --- Щомісячний графік (стовпчики) ---
                 var wsMonth = package.Workbook.Worksheets.Add("Місяці");
                 wsMonth.Cells[1, 1].Value = "Щомісячний час (годин)";
                 wsMonth.Cells[2, 1].Value = $"Діаграма: сумарний час перегляду по місяцях за {data.SelectedYear} рік.";
@@ -623,7 +595,6 @@ namespace MediaVault.ViewModels
                 }
                 wsMonth.Cells[wsMonth.Dimension.Address].AutoFitColumns();
 
-                // Додаємо стовпчикову діаграму для місяців
                 var chartMonth = wsMonth.Drawings.AddChart("chartMonth", OfficeOpenXml.Drawing.Chart.eChartType.ColumnClustered);
                 chartMonth.Title.Text = "Щомісячний час (годин)";
                 chartMonth.SetPosition(1, 0, 3, 0);
@@ -631,7 +602,6 @@ namespace MediaVault.ViewModels
                 var seriesMonth = chartMonth.Series.Add($"B4:B{row - 1}", $"A4:A{row - 1}");
                 seriesMonth.Header = "Годин";
 
-                // --- Добовий розподіл (стовпчики) ---
                 var wsDay = package.Workbook.Worksheets.Add("Доба");
                 wsDay.Cells[1, 1].Value = "Добовий розподіл часу (годин)";
                 wsDay.Cells[2, 1].Value = $"Діаграма: сумарний час перегляду по 3-годинних інтервалах доби за період {data.PeriodStart:yyyy-MM-dd} — {data.PeriodEnd:yyyy-MM-dd}.";
@@ -646,7 +616,6 @@ namespace MediaVault.ViewModels
                 }
                 wsDay.Cells[wsDay.Dimension.Address].AutoFitColumns();
 
-                // Додаємо стовпчикову діаграму для добового розподілу
                 var chartDay = wsDay.Drawings.AddChart("chartDay", OfficeOpenXml.Drawing.Chart.eChartType.ColumnClustered);
                 chartDay.Title.Text = "Добовий розподіл часу (годин)";
                 chartDay.SetPosition(1, 0, 3, 0);
@@ -654,7 +623,6 @@ namespace MediaVault.ViewModels
                 var seriesDay = chartDay.Series.Add($"B4:B{row - 1}", $"A4:A{row - 1}");
                 seriesDay.Header = "Годин";
 
-                // --- Кругова діаграма (жанри) ---
                 var wsGenre = package.Workbook.Worksheets.Add("Жанри");
                 wsGenre.Cells[1, 1].Value = "Популярність жанрів";
                 wsGenre.Cells[2, 1].Value = $"Діаграма: розподіл часу перегляду за жанрами за {data.SelectedYear} рік.";
@@ -671,7 +639,6 @@ namespace MediaVault.ViewModels
                 }
                 wsGenre.Cells[wsGenre.Dimension.Address].AutoFitColumns();
 
-                // Додаємо кругову діаграму для жанрів
                 var chartGenre = wsGenre.Drawings.AddChart("chartGenre", OfficeOpenXml.Drawing.Chart.eChartType.Pie);
                 chartGenre.Title.Text = "Популярність жанрів";
                 chartGenre.SetPosition(1, 0, 4, 0);
@@ -679,7 +646,6 @@ namespace MediaVault.ViewModels
                 var seriesGenre = chartGenre.Series.Add($"B4:B{row - 1}", $"A4:A{row - 1}");
                 seriesGenre.Header = "Годин";
 
-                // Save to file
                 using (var fs = new FileStream(filePath, FileMode.Create, FileAccess.Write))
                 {
                     package.SaveAs(fs);

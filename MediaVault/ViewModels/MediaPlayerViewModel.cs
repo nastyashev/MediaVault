@@ -1,18 +1,15 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Input;
-using Avalonia;
 using LibVLCSharp.Shared;
 using MediaVault.Models;
-using System.Diagnostics;
 
 namespace MediaVault.ViewModels
 {
     public class MediaPlayerViewModel : ViewModelBase, IDisposable
     {
+        private bool _disposed = false;
         private readonly LibVLC _libVLC;
         public MediaPlayer MediaPlayer { get; }
 
@@ -37,7 +34,7 @@ namespace MediaVault.ViewModels
 
         private double _position;
         private bool _isSeeking = false;
-        private double _lastSetPosition = 0;
+        private double _lastSetPosition;
 
         public double Position
         {
@@ -63,7 +60,7 @@ namespace MediaVault.ViewModels
         public string PositionString => FormatTime(Position);
         public string DurationString => FormatTime(Duration);
 
-        private string FormatTime(double seconds)
+        private static string FormatTime(double seconds)
         {
             if (double.IsNaN(seconds) || seconds < 0.5)
                 return "00:00";
@@ -99,21 +96,18 @@ namespace MediaVault.ViewModels
 
         private readonly MediaFile _mediaFile;
         private DateTime? _viewStartTime;
-        private int _lastLoggedPosition = 0;
-        private int _currentRecordId = 0;
+        private int _currentRecordId;
 
-        // Оновлюйте позицію під час відтворення
         public MediaPlayerViewModel(MediaFile mediaFile, Action? toggleFullScreenAction = null)
         {
             Core.Initialize();
-            _libVLC = new LibVLC(new[] { "--no-video-title-show", "--avcodec-hw=none" });
+            _libVLC = new LibVLC("--no-video-title-show", "--avcodec-hw=none");
             MediaPlayer = new MediaPlayer(_libVLC);
 
             var uri = new Uri(mediaFile.FilePath);
             var media = new Media(_libVLC, uri);
             MediaPlayer.Media = media;
 
-            // --- Додаємо: зчитування останньої позиції ---
             int resumePosition = 0;
             var log = ViewingHistoryLog.Load();
             var lastRecord = log.Records
@@ -122,7 +116,6 @@ namespace MediaVault.ViewModels
                 .FirstOrDefault();
             if (lastRecord != null)
                 resumePosition = lastRecord.EndTime;
-            // --- Кінець додавання ---
 
             PlayCommand = new RelayCommand(_ => Play());
             PauseCommand = new RelayCommand(_ => Pause());
@@ -139,13 +132,11 @@ namespace MediaVault.ViewModels
                 {
                     OnPropertyChanged(nameof(Duration));
                     UpdateIsSeekable();
-                    // --- Додаємо: встановлення позиції ---
                     if (resumePosition > 0 && Duration > 0)
                     {
                         Position = resumePosition;
                         MediaPlayer.Position = (float)(resumePosition / Duration);
                     }
-                    // --- Кінець додавання ---
                 });
             });
 
@@ -158,8 +149,6 @@ namespace MediaVault.ViewModels
                     _position = MediaPlayer.Position * Duration;
                     OnPropertyChanged(nameof(Position));
                     OnPropertyChanged(nameof(PositionString));
-                    // --- Позначення як переглянутого при 95% ---
-                    // Видалено автоматичне встановлення IsWatched і запису "переглянуто" тут
                 }
             };
             MediaPlayer.LengthChanged += (s, e) =>
@@ -191,7 +180,6 @@ namespace MediaVault.ViewModels
             set => SetProperty(ref _title, value);
         }
 
-        // Додаємо допоміжний метод:
         private void UpdateIsSeekable()
         {
             IsSeekable = MediaPlayer?.IsSeekable ?? false;
@@ -212,15 +200,32 @@ namespace MediaVault.ViewModels
             MediaPlayer.Pause();
             LogViewPauseOrStop("в процесі");
         }
-
         public void Dispose()
         {
-            LogViewPauseOrStop("в процесі");
-            MediaPlayer.Dispose();
-            _libVLC.Dispose();
+            Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
-        // --- Logging logic ---
+        protected virtual void Dispose(bool disposing)
+        {
+            if (_disposed)
+                return;
+
+            if (disposing)
+            {
+                LogViewPauseOrStop("в процесі");
+                MediaPlayer?.Dispose();
+                _libVLC?.Dispose();
+            }
+
+            _disposed = true;
+        }
+
+        ~MediaPlayerViewModel()
+        {
+            Dispose(false);
+        }
+
         private void LogViewStart()
         {
             var log = ViewingHistoryLog.Load();
@@ -233,11 +238,11 @@ namespace MediaVault.ViewModels
                 Duration = 0,
                 EndTime = 0,
                 Status = "в процесі",
-                Genre = _mediaFile.Genre ?? "" // Додаємо жанр, якщо є
+                Genre = _mediaFile.Genre ?? ""
             };
             _currentRecordId = record.RecordId;
             log.AddRecord(record);
-            log.Save(); // Додаємо збереження після додавання запису
+            log.Save();
         }
 
         private void LogViewPauseOrStop(string status)
@@ -253,7 +258,6 @@ namespace MediaVault.ViewModels
                 record.Duration = duration;
                 record.EndTime = endTime;
 
-                // Встановлюємо статус "переглянуто" ТІЛЬКИ якщо позиція >= 95%
                 if (MediaPlayer != null && Duration > 0 && (MediaPlayer.Position >= 0.95f || endTime >= 0.95 * Duration))
                 {
                     record.Status = "переглянуто";
@@ -264,13 +268,10 @@ namespace MediaVault.ViewModels
                     record.Status = status;
                 }
 
-                // Оновлюємо жанр, якщо він є в _mediaFile
                 if (!string.IsNullOrWhiteSpace(_mediaFile.Genre))
                     record.Genre = _mediaFile.Genre;
                 log.Save();
             }
         }
     }
-
-
 }

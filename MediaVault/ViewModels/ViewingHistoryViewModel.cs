@@ -2,16 +2,17 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using MediaVault.Models;
 using System.Windows.Input;
-using Avalonia.Controls;
 using Avalonia;
 using System;
+using Avalonia.Platform.Storage;
+using System.Diagnostics;
 
 namespace MediaVault.ViewModels
 {
     public class ViewingHistoryViewModel : ViewModelBase
     {
-        private ObservableCollection<ViewingHistoryRecord> _sortedHistory;
-        public ObservableCollection<ViewingHistoryRecord> SortedHistory
+        private ObservableCollection<ViewingHistoryRecord>? _sortedHistory;
+        public ObservableCollection<ViewingHistoryRecord>? SortedHistory
         {
             get => _sortedHistory;
             set => SetProperty(ref _sortedHistory, value);
@@ -26,63 +27,83 @@ namespace MediaVault.ViewModels
 
         public ICommand ExportCommand { get; }
         public ICommand HideHistoryCommand { get; }
-        public ICommand RefreshCommand { get; } // Додаємо команду оновлення
+        public ICommand RefreshCommand { get; }
 
         public event EventHandler? BackToLibraryRequested;
 
         public ViewingHistoryViewModel()
         {
             RefreshHistory();
+            ExportCommand = CreateExportCommand();
+            HideHistoryCommand = CreateHideHistoryCommand();
+            RefreshCommand = new RelayCommand(_ => RefreshHistory());
+        }
 
-            ExportCommand = new RelayCommand(async _ =>
+        private ICommand CreateExportCommand()
+        {
+            return new RelayCommand(async _ =>
             {
-                var dialog = new SaveFileDialog
-                {
-                    Title = "Експортувати історію перегляду",
-                    InitialFileName = "history.txt",
-                    Filters = { new FileDialogFilter { Name = "Text files", Extensions = { "txt" } } }
-                };
-
                 var mainWindow = Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
                     ? desktop.MainWindow
                     : null;
 
-                var path = await dialog.ShowAsync(mainWindow);
-                if (!string.IsNullOrEmpty(path))
+                if (mainWindow == null || mainWindow.StorageProvider == null)
+                    return;
+
+                var file = await mainWindow.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+                {
+                    Title = "Експортувати історію перегляду",
+                    SuggestedFileName = "history.txt",
+                    FileTypeChoices = new[]
+                    {
+                        new FilePickerFileType("Text files") { Patterns = new[] { "*.txt" } }
+                    }
+                });
+
+                if (file != null)
                 {
                     try
                     {
-                        using var writer = new System.IO.StreamWriter(path, false, System.Text.Encoding.UTF8);
-                        writer.WriteLine("Історія перегляду:");
-                        writer.WriteLine("------------------------------------------------------");
-                        foreach (var record in SortedHistory)
-                        {
-                            writer.WriteLine($"ID: {record.RecordId}");
-                            writer.WriteLine($"Назва: {record.FileName}");
-                            writer.WriteLine($"Дата: {record.ViewDate:g}");
-                            writer.WriteLine($"Тривалість перегляду (сек): {record.Duration}");
-                            writer.WriteLine($"Позиція завершення (сек): {record.EndTime}");
-                            writer.WriteLine($"Статус: {record.Status}");
-                            writer.WriteLine("------------------------------------------------------");
-                        }
+                        using var stream = await file.OpenWriteAsync();
+                        using var writer = new System.IO.StreamWriter(stream, System.Text.Encoding.UTF8);
+                        WriteHistoryToWriter(writer);
                     }
                     catch (System.Exception ex)
                     {
-                        // Можна додати повідомлення про помилку
+                        Debug.WriteLine($"Помилка при експорті історії перегляду: {ex.Message}");
                     }
                 }
             });
+        }
 
-            HideHistoryCommand = new RelayCommand(_ =>
+        private void WriteHistoryToWriter(System.IO.StreamWriter writer)
+        {
+            writer.WriteLine("Історія перегляду:");
+            writer.WriteLine("------------------------------------------------------");
+            if (SortedHistory != null)
+            {
+                foreach (var record in SortedHistory)
+                {
+                    writer.WriteLine($"ID: {record.RecordId}");
+                    writer.WriteLine($"Назва: {record.FileName}");
+                    writer.WriteLine($"Дата: {record.ViewDate:g}");
+                    writer.WriteLine($"Тривалість перегляду (сек): {record.Duration}");
+                    writer.WriteLine($"Позиція завершення (сек): {record.EndTime}");
+                    writer.WriteLine($"Статус: {record.Status}");
+                    writer.WriteLine("------------------------------------------------------");
+                }
+            }
+        }
+
+        private ICommand CreateHideHistoryCommand()
+        {
+            return new RelayCommand(_ =>
             {
                 IsViewingHistoryVisible = false;
                 BackToLibraryRequested?.Invoke(this, EventArgs.Empty);
             });
-
-            RefreshCommand = new RelayCommand(_ => RefreshHistory()); // Ініціалізуємо команду
         }
 
-        // Додаємо метод для оновлення історії
         public void RefreshHistory()
         {
             var log = ViewingHistoryLog.Load();
