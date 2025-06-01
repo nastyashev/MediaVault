@@ -17,9 +17,9 @@ namespace MediaVault.ViewModels
             ViewingHistoryViewModel.BackToLibraryRequested += OnBackToLibraryRequested;
             MediaLibraryPageViewModel.ShowStatisticsRequested += OnShowStatisticsRequested;
             StatisticsPageViewModel.BackToLibraryRequested += OnBackToLibraryRequested;
-
             MediaLibraryPageViewModel.ShowSettingsRequested += OnShowSettingsRequested;
             SettingsPageViewModel.BackToLibraryRequested += OnBackToLibraryRequested;
+            SettingsPageViewModel.MediaFolderPathChanged += OnMediaFolderPathChanged;
 
             CurrentPage = MediaLibraryPageViewModel;
         }
@@ -54,6 +54,11 @@ namespace MediaVault.ViewModels
         private void OnBackToLibraryRequested(object? sender, EventArgs e)
         {
             CurrentPage = MediaLibraryPageViewModel;
+        }
+
+        private async void OnMediaFolderPathChanged(object? sender, string newPath)
+        {
+            await MediaLibraryPageViewModel.ScanDirectory(newPath);
         }
     }
 }

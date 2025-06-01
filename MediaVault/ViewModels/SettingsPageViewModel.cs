@@ -15,6 +15,7 @@ namespace MediaVault.ViewModels
         public ICommand ExportConfigCommand { get; }
         public ICommand ImportConfigCommand { get; }
         public event EventHandler? BackToLibraryRequested;
+        public event EventHandler<string>? MediaFolderPathChanged;
 
         private static readonly string DataDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data");
         private static readonly string ConfigFilePath = Path.Combine(DataDirectory, "config.xml");
@@ -65,6 +66,7 @@ namespace MediaVault.ViewModels
                     _config.MediaFolderPath = value;
                     OnPropertyChanged(nameof(MediaFolderPath));
                     SaveConfig();
+                    MediaFolderPathChanged?.Invoke(this, value);
                 }
             }
         }
