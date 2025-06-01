@@ -30,7 +30,6 @@
         CornerRadius="12">
         <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
             <StackPanel Spacing="12">
-                <!--  Верхня панель фільтрів і перемикачів  -->
                 <Grid VerticalAlignment="Center" ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto,Auto,Auto,Auto">
                     <Button
                         Grid.Column="0"
@@ -135,15 +134,11 @@
                             ToolTip.Tip="Галерея" />
                     </StackPanel>
                 </Grid>
-
-                <!--  Основний контент: головний Grid з двома колонками  -->
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="220" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
-
-                    <!--  Ліва колонка: Плейлисти  -->
                     <StackPanel
                         Grid.Column="0"
                         Margin="8"
@@ -167,15 +162,11 @@
                             Command="{Binding CreatePlaylistCommand}"
                             Content="➕ Новий плейлист" />
                     </StackPanel>
-
-                    <!--  Права колонка: Основний вміст (TabControl)  -->
                     <Grid Grid.Column="1">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
-
-                        <!--  Кнопки для роботи з плейлистом  -->
                         <StackPanel
                             Margin="8,0,0,0"
                             Orientation="Horizontal"
@@ -183,8 +174,6 @@
                             <Button Command="{Binding AddToPlaylistCommand}" Content="Додати у плейлист" />
                             <Button Command="{Binding RemoveFromPlaylistCommand}" Content="Видалити з плейлиста" />
                         </StackPanel>
-
-                        <!--  TabControl з медіатекою та плейлистом  -->
                         <TabControl Grid.Row="1" Margin="0,8,0,0">
                             <TabItem Header="Вся медіатека">
                                 <ScrollViewer
@@ -193,7 +182,6 @@
                                     HorizontalScrollBarVisibility="Auto"
                                     VerticalScrollBarVisibility="Auto">
                                     <Grid HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-                                        <!--  Список  -->
                                         <ListBox
                                             Name="MediaListBox"
                                             DoubleTapped="OnMediaItemDoubleTapped"
@@ -242,7 +230,6 @@
                                                 </DataTemplate>
                                             </ListBox.ItemTemplate>
                                         </ListBox>
-                                        <!--  Галерея  -->
                                         <ListBox
                                             Name="MediaGallery"
                                             DoubleTapped="OnMediaItemDoubleTapped"
