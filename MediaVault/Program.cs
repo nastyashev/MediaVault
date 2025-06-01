@@ -1,5 +1,6 @@
 ﻿using Avalonia;
 using System;
+using MediaVault.Models; // Додайте цей using
 
 namespace MediaVault
 {

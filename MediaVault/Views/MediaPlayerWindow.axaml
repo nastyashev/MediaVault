@@ -1,0 +1,173 @@
+<Window
+    x:Class="MediaVault.MediaPlayerWindow"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="clr-namespace:MediaVault.ViewModels"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:vlc="clr-namespace:LibVLCSharp.Avalonia;assembly=LibVLCSharp.Avalonia"
+    Title="MediaPlayerWindow"
+    d:DesignHeight="450"
+    d:DesignWidth="800"
+    x:DataType="local:MediaPlayerViewModel"
+    mc:Ignorable="d">
+
+    <Grid RowDefinitions="*,Auto">
+        <vlc:VideoView
+            Name="VideoView"
+            Grid.Row="0"
+            HorizontalAlignment="Stretch"
+            VerticalAlignment="Stretch" />
+        <Border
+            Grid.Row="1"
+            Margin="24"
+            Padding="20,16,20,24"
+            Background="#CC22272E"
+            CornerRadius="16"
+            IsHitTestVisible="{Binding ControlsVisible}"
+            IsVisible="{Binding ControlsVisible}">
+            <StackPanel
+                HorizontalAlignment="Stretch"
+                Orientation="Vertical"
+                Spacing="14">
+                <Grid
+                    Height="32"
+                    VerticalAlignment="Stretch"
+                    ColumnDefinitions="Auto,*,Auto">
+                    <TextBlock
+                        Grid.Column="0"
+                        Margin="0,0,14,0"
+                        VerticalAlignment="Center"
+                        FontSize="14"
+                        FontWeight="SemiBold"
+                        Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"
+                        Text="{Binding PositionString}" />
+                    <Slider
+                        Grid.Column="1"
+                        Height="48"
+                        Margin="0"
+                        VerticalAlignment="Center"
+                        IsEnabled="{Binding IsSeekable}"
+                        Maximum="{Binding Duration}"
+                        Minimum="0"
+                        Value="{Binding Position, Mode=TwoWay}" />
+                    <TextBlock
+                        Grid.Column="2"
+                        Margin="14,0,0,0"
+                        VerticalAlignment="Center"
+                        FontSize="14"
+                        FontWeight="SemiBold"
+                        Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"
+                        Text="{Binding DurationString}" />
+                </Grid>
+                <Grid
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Center"
+                    ColumnDefinitions="*,Auto,*">
+                    <TextBlock
+                        Grid.Column="0"
+                        Margin="0,0,18,0"
+                        VerticalAlignment="Center"
+                        FontSize="16"
+                        FontWeight="Bold"
+                        Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"
+                        Text="{Binding Title}"
+                        TextTrimming="CharacterEllipsis" />
+                    <StackPanel
+                        Grid.Column="2"
+                        Margin="0"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Center"
+                        Orientation="Horizontal"
+                        Spacing="10">
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            FontSize="13"
+                            FontWeight="Medium"
+                            Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"
+                            Text="{Binding Volume}" />
+                        <Slider
+                            Width="110"
+                            Height="48"
+                            Margin="0"
+                            VerticalAlignment="Center"
+                            Maximum="100"
+                            Minimum="0"
+                            ToolTip.Tip="Гучність"
+                            Value="{Binding Volume, Mode=TwoWay}" />
+                    </StackPanel>
+                    <StackPanel
+                        Grid.Column="1"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Orientation="Horizontal"
+                        Spacing="15">
+                        <Button
+                            Width="50"
+                            Height="50"
+                            Padding="0"
+                            Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                            Command="{Binding PlayCommand}"
+                            CornerRadius="25"
+                            ToolTip.Tip="Відтворити">
+                            <Grid>
+                                <Viewbox
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Stretch="Uniform">
+                                    <Path
+                                        Width="24"
+                                        Height="24"
+                                        Data="M6,4 L18,12 L6,20 Z"
+                                        Fill="{DynamicResource SystemControlForegroundBaseHighBrush}" />
+                                </Viewbox>
+                            </Grid>
+                        </Button>
+                        <Button
+                            Width="50"
+                            Height="50"
+                            Padding="0"
+                            Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                            Command="{Binding PauseCommand}"
+                            CornerRadius="25"
+                            ToolTip.Tip="Пауза">
+                            <Grid>
+                                <Viewbox
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Stretch="Uniform">
+                                    <Path
+                                        Width="24"
+                                        Height="24"
+                                        Data="M7,4 H11 V20 H7 Z M13,4 H17 V20 H13 Z"
+                                        Fill="{DynamicResource SystemControlForegroundBaseHighBrush}" />
+                                </Viewbox>
+                            </Grid>
+                        </Button>
+                        <Button
+                            Width="50"
+                            Height="50"
+                            Padding="0"
+                            Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                            Command="{Binding ToggleFullScreenCommand}"
+                            CornerRadius="25"
+                            ToolTip.Tip="На весь екран">
+                            <Grid>
+                                <Path
+                                    Width="24"
+                                    Height="24"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Data="M4,9 V4 H9 M16,4 H20 V9 M4,15 V20 H9 M16,20 H20 V15"
+                                    Fill="Transparent"
+                                    Stretch="Uniform"
+                                    Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}"
+                                    StrokeThickness="2" />
+                            </Grid>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

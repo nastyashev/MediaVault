@@ -7,6 +7,7 @@ namespace MediaVault.Views
         public MainWindow()
         {
             InitializeComponent();
+            DataContext = new MediaVault.ViewModels.MainWindowViewModel();
         }
     }
 }

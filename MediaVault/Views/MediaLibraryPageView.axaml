@@ -1,0 +1,320 @@
+<UserControl
+    x:Class="MediaVault.Views.MediaLibraryPageView"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="clr-namespace:MediaVault.Views.Converters"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:model="clr-namespace:MediaVault.Models"
+    xmlns:views="clr-namespace:MediaVault.Views"
+    xmlns:vm="clr-namespace:MediaVault.ViewModels"
+    d:DesignHeight="450"
+    d:DesignWidth="800"
+    x:DataType="vm:MediaLibraryPageViewModel"
+    mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <local:UrlToBitmapConverter x:Key="UrlToBitmapConverter" />
+        <local:InverseBooleanConverter x:Key="InverseBooleanConverter" />
+        <local:IsNotNullConverter x:Key="IsNotNullConverter" />
+    </UserControl.Resources>
+
+    <Border
+        Margin="20"
+        Padding="20"
+        HorizontalAlignment="Stretch"
+        VerticalAlignment="Stretch"
+        Background="{DynamicResource ThemeBackgroundBrush}"
+        BorderBrush="{DynamicResource ThemeBorderBrush}"
+        BorderThickness="1"
+        CornerRadius="12">
+        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="12">
+                <!--  Верхня панель фільтрів і перемикачів  -->
+                <Grid VerticalAlignment="Center" ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto,Auto,Auto,Auto">
+                    <Button
+                        Grid.Column="0"
+                        Width="36"
+                        Height="36"
+                        Margin="10,10,5,10"
+                        Background="{DynamicResource ThemeControlMidBrush}"
+                        BorderBrush="{DynamicResource ThemeDividerBrush}"
+                        BorderThickness="1"
+                        Command="{Binding ScanDirectoryCommand}"
+                        Content="📂"
+                        ToolTip.Tip="Обрати директорію" />
+                    <Button
+                        Grid.Column="1"
+                        Width="36"
+                        Height="36"
+                        Margin="0,10,5,10"
+                        Background="{DynamicResource ThemeControlMidBrush}"
+                        BorderBrush="{DynamicResource ThemeDividerBrush}"
+                        BorderThickness="1"
+                        Click="OnViewingHistoryClick"
+                        Content="🕑"
+                        ToolTip.Tip="Історія перегляду" />
+                    <Button
+                        Grid.Column="2"
+                        Width="36"
+                        Height="36"
+                        Margin="0,10,5,10"
+                        Background="{DynamicResource ThemeControlMidBrush}"
+                        BorderBrush="{DynamicResource ThemeDividerBrush}"
+                        BorderThickness="1"
+                        Command="{Binding ShowStatisticsCommand}"
+                        Content="📊"
+                        ToolTip.Tip="Статистика" />
+                    <Button
+                        Grid.Column="3"
+                        Width="36"
+                        Height="36"
+                        Margin="0,10,10,10"
+                        Background="{DynamicResource ThemeControlMidBrush}"
+                        BorderBrush="{DynamicResource ThemeDividerBrush}"
+                        BorderThickness="1"
+                        Command="{Binding SettingsCommand}"
+                        Content="⚙️"
+                        ToolTip.Tip="Налаштування" />
+                    <StackPanel
+                        Grid.Column="4"
+                        VerticalAlignment="Center"
+                        Orientation="Horizontal"
+                        Spacing="8">
+                        <TextBox
+                            Width="200"
+                            Height="36"
+                            Margin="0,0,0,0"
+                            VerticalAlignment="Center"
+                            Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                            ToolTip.Tip="Пошук за назвою"
+                            Watermark="Пошук..." />
+                        <ComboBox
+                            Width="160"
+                            Height="36"
+                            ItemsSource="{Binding AvailableGenres}"
+                            SelectedItem="{Binding SelectedGenre}"
+                            ToolTip.Tip="Фільтр за жанром" />
+                        <ComboBox
+                            Width="160"
+                            Height="36"
+                            ItemsSource="{Binding StatusFilters}"
+                            SelectedItem="{Binding SelectedStatusFilter}"
+                            ToolTip.Tip="Фільтр за статусом" />
+                        <ComboBox
+                            Width="160"
+                            Height="36"
+                            ItemsSource="{Binding SortOptions}"
+                            SelectedItem="{Binding SelectedSortOption}"
+                            ToolTip.Tip="Сортування" />
+                    </StackPanel>
+                    <StackPanel
+                        Grid.Column="5"
+                        Margin="10,0,10,0"
+                        VerticalAlignment="Center"
+                        Orientation="Horizontal"
+                        Spacing="0">
+                        <ToggleButton
+                            Width="36"
+                            Height="36"
+                            Margin="0,0,5,0"
+                            Background="{DynamicResource ThemeControlMidBrush}"
+                            BorderBrush="{DynamicResource ThemeDividerBrush}"
+                            BorderThickness="1"
+                            Content="📋"
+                            IsChecked="{Binding IsListView}"
+                            ToolTip.Tip="Список" />
+                        <ToggleButton
+                            Width="36"
+                            Height="36"
+                            Background="{DynamicResource ThemeControlMidBrush}"
+                            BorderBrush="{DynamicResource ThemeDividerBrush}"
+                            BorderThickness="1"
+                            Content="🖼️"
+                            IsChecked="{Binding IsGalleryView}"
+                            ToolTip.Tip="Галерея" />
+                    </StackPanel>
+                </Grid>
+
+                <!--  Основний контент: головний Grid з двома колонками  -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="220" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <!--  Ліва колонка: Плейлисти  -->
+                    <StackPanel
+                        Grid.Column="0"
+                        Margin="8"
+                        Background="{DynamicResource ThemeControlLowBrush}">
+                        <TextBlock
+                            Margin="0,0,0,8"
+                            FontWeight="Bold"
+                            Text="Плейлисти" />
+                        <ListBox
+                            Height="200"
+                            ItemsSource="{Binding Playlists}"
+                            SelectedItem="{Binding SelectedPlaylist}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Name}" />
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                        <Button
+                            Margin="0,8,0,0"
+                            Command="{Binding CreatePlaylistCommand}"
+                            Content="➕ Новий плейлист" />
+                    </StackPanel>
+
+                    <!--  Права колонка: Основний вміст (TabControl)  -->
+                    <Grid Grid.Column="1">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+
+                        <!--  Кнопки для роботи з плейлистом  -->
+                        <StackPanel
+                            Margin="8,0,0,0"
+                            Orientation="Horizontal"
+                            Spacing="8">
+                            <Button Command="{Binding AddToPlaylistCommand}" Content="Додати у плейлист" />
+                            <Button Command="{Binding RemoveFromPlaylistCommand}" Content="Видалити з плейлиста" />
+                        </StackPanel>
+
+                        <!--  TabControl з медіатекою та плейлистом  -->
+                        <TabControl Grid.Row="1" Margin="0,8,0,0">
+                            <TabItem Header="Вся медіатека">
+                                <ScrollViewer
+                                    HorizontalAlignment="Stretch"
+                                    VerticalAlignment="Stretch"
+                                    HorizontalScrollBarVisibility="Auto"
+                                    VerticalScrollBarVisibility="Auto">
+                                    <Grid HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                                        <!--  Список  -->
+                                        <ListBox
+                                            Name="MediaListBox"
+                                            DoubleTapped="OnMediaItemDoubleTapped"
+                                            IsVisible="{Binding IsListView}"
+                                            ItemsSource="{Binding MediaFiles}"
+                                            SelectedItem="{Binding SelectedMediaFile, Mode=TwoWay}">
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Grid Margin="5">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <Border
+                                                            Grid.Column="0"
+                                                            Width="32"
+                                                            Height="48"
+                                                            Margin="0,0,10,0"
+                                                            Background="{DynamicResource ThemeControlLowBrush}"
+                                                            CornerRadius="4">
+                                                            <Image
+                                                                Width="32"
+                                                                Height="48"
+                                                                Source="{Binding CoverImagePath, Converter={StaticResource UrlToBitmapConverter}}"
+                                                                Stretch="UniformToFill" />
+                                                        </Border>
+                                                        <StackPanel Grid.Column="1" Orientation="Vertical">
+                                                            <TextBlock FontWeight="Bold" Text="{Binding Title}" />
+                                                            <TextBlock FontSize="12" Text="{Binding Genre}" />
+                                                            <TextBlock FontSize="12" Text="{Binding ReleaseYear}" />
+                                                        </StackPanel>
+                                                        <StackPanel
+                                                            Grid.Column="2"
+                                                            Margin="10,0,0,0"
+                                                            VerticalAlignment="Center"
+                                                            Orientation="Horizontal">
+                                                            <Button
+                                                                Width="32"
+                                                                Height="32"
+                                                                Margin="5,0,0,0"
+                                                                Content="✏️"
+                                                                ToolTip.Tip="Редагувати" />
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+                                        <!--  Галерея  -->
+                                        <ListBox
+                                            Name="MediaGallery"
+                                            DoubleTapped="OnMediaItemDoubleTapped"
+                                            IsVisible="{Binding IsGalleryView}"
+                                            ItemsSource="{Binding MediaFiles}"
+                                            SelectedItem="{Binding SelectedMediaFile, Mode=TwoWay}">
+                                            <ListBox.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <WrapPanel Orientation="Horizontal" />
+                                                </ItemsPanelTemplate>
+                                            </ListBox.ItemsPanel>
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel Width="200" Margin="10">
+                                                        <Border
+                                                            Width="180"
+                                                            Height="260"
+                                                            HorizontalAlignment="Center"
+                                                            BorderBrush="Gray"
+                                                            BorderThickness="1"
+                                                            ClipToBounds="True">
+                                                            <Image
+                                                                Width="180"
+                                                                Height="260"
+                                                                HorizontalAlignment="Stretch"
+                                                                VerticalAlignment="Stretch"
+                                                                Source="{Binding CoverImagePath, Converter={StaticResource UrlToBitmapConverter}}"
+                                                                Stretch="UniformToFill" />
+                                                        </Border>
+                                                        <TextBlock
+                                                            Margin="0,5,0,0"
+                                                            HorizontalAlignment="Center"
+                                                            Text="{Binding Title}" />
+                                                        <TextBlock
+                                                            HorizontalAlignment="Center"
+                                                            FontSize="12"
+                                                            Text="{Binding Genre}" />
+                                                        <TextBlock
+                                                            HorizontalAlignment="Center"
+                                                            FontSize="12"
+                                                            Text="{Binding ReleaseYear}" />
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+                                    </Grid>
+                                </ScrollViewer>
+                            </TabItem>
+                            <TabItem Header="Вибраний плейлист" IsEnabled="{Binding SelectedPlaylist, Converter={StaticResource IsNotNullConverter}}">
+                                <ListBox ItemsSource="{Binding PlaylistMediaFiles}" SelectedItem="{Binding SelectedMediaFile, Mode=TwoWay}">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Margin="5" Orientation="Horizontal">
+                                                <Image
+                                                    Width="48"
+                                                    Height="48"
+                                                    Margin="0,0,10,0"
+                                                    Source="{Binding CoverImagePath, Converter={StaticResource UrlToBitmapConverter}}" />
+                                                <StackPanel Orientation="Vertical">
+                                                    <TextBlock FontWeight="Bold" Text="{Binding Title}" />
+                                                    <TextBlock FontSize="12" Text="{Binding Genre}" />
+                                                    <TextBlock FontSize="12" Text="{Binding ReleaseYear}" />
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </TabItem>
+                        </TabControl>
+                    </Grid>
+                </Grid>
+            </StackPanel>
+        </ScrollViewer>
+    </Border>
+</UserControl>
