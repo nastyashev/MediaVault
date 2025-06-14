@@ -32,7 +32,6 @@ namespace MediaVault.Models
 
         public static ViewingHistoryLog Load()
         {
-            // Ensure Data directory exists
             if (!Directory.Exists(DataDirectory))
                 Directory.CreateDirectory(DataDirectory);
 
@@ -57,7 +56,6 @@ namespace MediaVault.Models
 
         public void Save()
         {
-            // Ensure Data directory exists
             if (!Directory.Exists(DataDirectory))
                 Directory.CreateDirectory(DataDirectory);
 

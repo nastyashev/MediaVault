@@ -223,6 +223,8 @@
                                                                 Width="32"
                                                                 Height="32"
                                                                 Margin="5,0,0,0"
+                                                                Command="{Binding $parent[UserControl].DataContext.EditMediaCommand}"
+                                                                CommandParameter="{Binding}"
                                                                 Content="✏️"
                                                                 ToolTip.Tip="Редагувати" />
                                                         </StackPanel>

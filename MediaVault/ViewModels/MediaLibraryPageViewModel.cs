@@ -10,7 +10,7 @@ using MediaVault.Models;
 using TMDbLib.Client;
 using System.Collections.Generic;
 using Avalonia.Threading;
-using TagLib;
+using System.Text.Json;
 
 namespace MediaVault.ViewModels
 {
@@ -24,7 +24,7 @@ namespace MediaVault.ViewModels
         private static readonly string LibraryFilePath = Path.Combine(LibraryDirectory, "library.xml");
         private static readonly string PlaylistsFilePath = Path.Combine(LibraryDirectory, "playlists.xml");
         private const string TmdbImageBaseUrl = "https://image.tmdb.org/t/p/w500";
-        private const string PlaceholderImagePath = "Assets/placeholder.png";
+        private const string PlaceholderImagePath = "Images/placeholder.png";
 
         public ViewingHistoryViewModel ViewingHistoryViewModel { get; } = new ViewingHistoryViewModel();
 
@@ -40,6 +40,15 @@ namespace MediaVault.ViewModels
             get => _selectedPlaylist;
             set
             {
+                if (_selectedPlaylist != null && value != null && _selectedPlaylist.Id == value.Id)
+                {
+                    _selectedPlaylist = null;
+                    OnPropertyChanged(nameof(SelectedPlaylist));
+                    UpdatePlaylistMediaFiles();
+                    (AddToPlaylistCommand as RelayCommand)?.RaiseCanExecuteChanged();
+                    (RemoveFromPlaylistCommand as RelayCommand)?.RaiseCanExecuteChanged();
+                    return;
+                }
                 if (SetProperty(ref _selectedPlaylist, value))
                 {
                     UpdatePlaylistMediaFiles();
@@ -81,7 +90,10 @@ namespace MediaVault.ViewModels
             ScanDirectoryCommand = new RelayCommand(_ => OnScanDirectory());
             ShowViewingHistoryCommand = new RelayCommand(_ => ShowViewingHistory());
             ShowStatisticsCommand = new RelayCommand(_ => ShowStatistics());
-            EditMediaCommand = new RelayCommand(EditMedia);
+            EditMediaCommand = new RelayCommand(
+                param => EditMedia(param),
+                param => param is MediaFile mf && System.IO.File.Exists(mf.FilePath)
+            );
             CreatePlaylistCommand = new RelayCommand(_ => CreatePlaylistDialog());
             AddToPlaylistCommand = new RelayCommand(
                 _ => AddSelectedToPlaylist(),
@@ -111,6 +123,14 @@ namespace MediaVault.ViewModels
             get => _selectedMediaFile;
             set
             {
+                if (_selectedMediaFile != null && value != null && _selectedMediaFile.FilePath == value.FilePath)
+                {
+                    _selectedMediaFile = null;
+                    OnPropertyChanged(nameof(SelectedMediaFile));
+                    (AddToPlaylistCommand as RelayCommand)?.RaiseCanExecuteChanged();
+                    (RemoveFromPlaylistCommand as RelayCommand)?.RaiseCanExecuteChanged();
+                    return;
+                }
                 if (SetProperty(ref _selectedMediaFile, value))
                 {
                     (AddToPlaylistCommand as RelayCommand)?.RaiseCanExecuteChanged();
@@ -164,8 +184,6 @@ namespace MediaVault.ViewModels
                 }
             }
         }
-
-
 
         private SortOption _selectedSortOption = SortOption.None;
         public ObservableCollection<string> SortOptions { get; } = new ObservableCollection<string>
@@ -230,6 +248,9 @@ namespace MediaVault.ViewModels
                 var files = Directory.EnumerateFiles(path, "*.*", SearchOption.AllDirectories)
                                      .Where(file => supportedExtensions.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase));
 
+                var existingEntries = LoadLibraryFromXml(LibraryFilePath);
+                var existingEntriesDict = existingEntries.ToDictionary(e => e.file_id ?? "", e => e);
+
                 var libraryEntries = new List<LibraryEntry>();
 
                 MediaFiles.Clear();
@@ -241,22 +262,43 @@ namespace MediaVault.ViewModels
                 {
                     var mediaFile = new MediaFile(Path.GetFileName(file), file, GetMediaType(file));
                     string titleWithoutExtension = Path.GetFileNameWithoutExtension(file);
+
+                    TimeSpan? localDuration = null;
+                    if (existingEntriesDict.TryGetValue(file, out var existingEntry))
+                    {
+                        var localMedia = LibraryEntryToMediaFile(existingEntry);
+                        mediaFile.Genre = localMedia.Genre;
+                        mediaFile.ReleaseYear = localMedia.ReleaseYear;
+                        mediaFile.CoverImagePath = localMedia.CoverImagePath;
+                        mediaFile.Duration = localMedia.Duration;
+                        mediaFile.AddedDate = localMedia.AddedDate;
+                        localDuration = localMedia.Duration;
+                    }
+
                     var updateTask = UpdateMediaDetailsFromTMDb(mediaFile, titleWithoutExtension).ContinueWith(_ =>
                     {
                         Dispatcher.UIThread.Post(() =>
                         {
-                            mediaFile.AddedDate = DateTime.Now;
-                            mediaFile.Duration = TimeSpan.Zero;
+                            if (mediaFile.AddedDate == default)
+                                mediaFile.AddedDate = DateTime.Now;
 
-                            try
+                            if (mediaFile.Duration == default || mediaFile.Duration == TimeSpan.Zero)
                             {
-                                using var tagFile = TagLib.File.Create(file);
-                                mediaFile.Duration = tagFile.Properties.Duration;
-                                mediaFile.Duration = tagFile.Properties.Duration;
-                            }
-                            catch
-                            {
-                                mediaFile.Duration = TimeSpan.Zero;
+                                bool durationSet = false;
+                                try
+                                {
+                                    using var tagFile = TagLib.File.Create(file);
+                                    if (tagFile.Properties.Duration > TimeSpan.Zero)
+                                    {
+                                        mediaFile.Duration = tagFile.Properties.Duration;
+                                        durationSet = true;
+                                    }
+                                }
+                                catch { }
+                                if (!durationSet && localDuration.HasValue && localDuration.Value > TimeSpan.Zero)
+                                {
+                                    mediaFile.Duration = localDuration.Value;
+                                }
                             }
 
                             MediaFiles.Add(mediaFile);
@@ -268,8 +310,8 @@ namespace MediaVault.ViewModels
                                 title = mediaFile.Title,
                                 genre = mediaFile.Genre,
                                 added_date = mediaFile.AddedDate,
-                                metadata = $"ReleaseYear: {mediaFile.ReleaseYear}, Cover: {mediaFile.CoverImagePath}, Duration: {mediaFile.Duration}"
                             };
+                            UpdateMetadataInEntry(entry, mediaFile);
                             libraryEntries.Add(entry);
                         });
                     });
@@ -287,7 +329,6 @@ namespace MediaVault.ViewModels
         {
             try
             {
-                // Ensure Data directory exists before saving
                 var dir = Path.GetDirectoryName(filePath);
                 if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
                     Directory.CreateDirectory(dir);
@@ -369,22 +410,28 @@ namespace MediaVault.ViewModels
                     Debug.WriteLine($"[TMDb] Found: {movie.Title} (ID: {movie.Id})");
                     if (!string.IsNullOrEmpty(movie.PosterPath))
                         mediaFile.CoverImagePath = TmdbImageBaseUrl + movie.PosterPath;
-                    else
-                        mediaFile.CoverImagePath = PlaceholderImagePath;
-                    mediaFile.ReleaseYear = movie.ReleaseDate?.Year ?? 0;
-                    Debug.WriteLine($"[TMDb] Genre: {mediaFile.Genre}, Year: {mediaFile.ReleaseYear}, Cover: {mediaFile.CoverImagePath}");
+                    mediaFile.ReleaseYear = movie.ReleaseDate?.Year ?? mediaFile.ReleaseYear;
+                    var movieDetails = await _tmdbClient.GetMovieAsync(movie.Id);
+                    mediaFile.Genre = movieDetails.Genres != null && movieDetails.Genres.Any()
+                        ? string.Join(", ", movieDetails.Genres.Select(g => g.Name))
+                        : mediaFile.Genre;
+                    mediaFile.Title = movie.Title;
+                    mediaFile.Duration = (movieDetails.Runtime.HasValue && movieDetails.Runtime.Value > 0)
+                        ? TimeSpan.FromMinutes((double)movieDetails.Runtime.Value)
+                        : mediaFile.Duration;
                     Debug.WriteLine($"[TMDb] Genre: {mediaFile.Genre}, Year: {mediaFile.ReleaseYear}, Cover: {mediaFile.CoverImagePath}");
                 }
                 else
                 {
                     Debug.WriteLine($"[TMDb] No movie found for '{searchTitle}'");
-                    mediaFile.CoverImagePath = PlaceholderImagePath;
+                    if (string.IsNullOrEmpty(mediaFile.CoverImagePath))
+                        mediaFile.CoverImagePath = PlaceholderImagePath;
+                    mediaFile.Title = searchTitle;
                 }
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error fetching data from TMDb: {ex.Message}");
-                mediaFile.CoverImagePath = PlaceholderImagePath;
             }
         }
 
@@ -609,136 +656,108 @@ namespace MediaVault.ViewModels
             ApplySortAndFilter();
         }
 
+        public class MediaMetadata
+        {
+            public int ReleaseYear { get; set; }
+            public string? Cover { get; set; }
+            public TimeSpan? Duration { get; set; }
+        }
+
         private MediaFile LibraryEntryToMediaFile(LibraryEntry entry)
         {
             var mediaType = GetMediaType(entry.file_id);
             var mediaFile = new MediaFile(entry.title, entry.file_id, mediaType)
             {
                 Genre = entry.genre,
-                ReleaseYear = ParseReleaseYearFromMetadata(entry.metadata),
-                CoverImagePath = ParseCoverFromMetadata(entry.metadata),
-                AddedDate = entry.added_date,
-                Duration = ParseDurationFromMetadata(entry.metadata)
+                AddedDate = entry.added_date
             };
+
+            if (!string.IsNullOrEmpty(entry.metadata))
+            {
+                try
+                {
+                    var meta = JsonSerializer.Deserialize<MediaMetadata>(entry.metadata);
+                    if (meta != null)
+                    {
+                        mediaFile.ReleaseYear = meta.ReleaseYear;
+                        mediaFile.CoverImagePath = meta.Cover;
+                        mediaFile.Duration = meta.Duration ?? TimeSpan.Zero;
+                    }
+                }
+                catch
+                {
+                    Debug.WriteLine($"Не вдалося десеріалізувати метадані для файлу: {entry.file_id}");
+                    mediaFile.ReleaseYear = 0;
+                    mediaFile.CoverImagePath = null;
+                    mediaFile.Duration = TimeSpan.Zero;
+                }
+            }
             return mediaFile;
         }
 
-        private static int ParseReleaseYearFromMetadata(string metadata)
+        private void UpdateMetadataInEntry(LibraryEntry entry, MediaFile mediaFile)
         {
-            if (string.IsNullOrEmpty(metadata)) return 0;
-            var parts = metadata.Split(',');
-            var yearPart = parts
-                .Where(part => part.Trim().StartsWith("ReleaseYear:"))
-                .Select(part => part.Split(':')[1].Trim())
-                .FirstOrDefault();
-
-            if (yearPart != null && int.TryParse(yearPart, out int year))
-                return year;
-            return 0;
-        }
-
-        private static string ParseCoverFromMetadata(string metadata)
-        {
-            if (string.IsNullOrEmpty(metadata)) return string.Empty;
-            var parts = metadata.Split(',');
-            var coverPart = parts
-                .Where(part => part.Trim().StartsWith("Cover:"))
-                .Select(part => part.Split(':')[1].Trim())
-                .FirstOrDefault();
-
-            return coverPart ?? string.Empty;
-        }
-
-        private static TimeSpan ParseDurationFromMetadata(string metadata)
-        {
-            if (string.IsNullOrEmpty(metadata)) return TimeSpan.Zero;
-            var parts = metadata.Split(',');
-            foreach (var part in parts)
+            var meta = new MediaMetadata
             {
-                var trimmed = part.Trim();
-                if (trimmed.StartsWith("Duration:"))
-                {
-                    var val = trimmed.Substring("Duration:".Length).Trim();
-                    if (TimeSpan.TryParse(val, System.Globalization.CultureInfo.InvariantCulture, out var ts))
-                        return ts;
-                }
-            }
-            return TimeSpan.Zero;
+                ReleaseYear = mediaFile.ReleaseYear,
+                Cover = mediaFile.CoverImagePath,
+                Duration = mediaFile.Duration
+            };
+            entry.metadata = JsonSerializer.Serialize(meta);
         }
 
         private async void EditMedia(object? parameter)
         {
             if (parameter is MediaFile mediaFile)
             {
-                var window = Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
-                    ? desktop.MainWindow
-                    : null;
-
-                var genreDialog = new Avalonia.Controls.Window
+                var result = await ShowEditMediaDialogAsync(mediaFile);
+                if (result != null)
                 {
-                    Title = "Редагувати жанр",
+                    string? newGenre = result.Value.genre;
+                    int newYear = result.Value.year;
+                    string? newCover = result.Value.cover;
+
+                    mediaFile.Genre = newGenre ?? mediaFile.Genre;
+                    mediaFile.ReleaseYear = newYear;
+                    mediaFile.CoverImagePath = newCover ?? mediaFile.CoverImagePath;
+
+                    var entries = LoadLibraryFromXml(LibraryFilePath);
+                    var entry = entries.FirstOrDefault(e => e.file_id == mediaFile.FilePath);
+                    if (entry != null)
+                    {
+                        entry.genre = mediaFile.Genre ?? "";
+                        entry.title = mediaFile.Title ?? "";
+                        UpdateMetadataInEntry(entry, mediaFile);
+                    }
+                    SaveLibraryToXml(entries, LibraryFilePath);
+                    ApplySortAndFilter();
+                }
+            }
+        }
+
+        private async Task<(string? genre, int year, string? cover)?> ShowEditMediaDialogAsync(MediaFile mediaFile)
+        {
+            var window = Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
+                ? desktop.MainWindow
+                : null;
+
+            if (window != null)
+            {
+                var dialog = new Avalonia.Controls.Window
+                {
+                    Title = "Редагувати метадані",
                     Width = 400,
-                    Height = 120,
+                    Height = 250,
                     Content = new Avalonia.Controls.StackPanel
                     {
                         Margin = new Avalonia.Thickness(10),
+                        Spacing = 8,
                         Children =
                         {
                             new Avalonia.Controls.TextBlock { Text = "Жанр:" },
                             new Avalonia.Controls.TextBox { Name = "GenreBox", Text = mediaFile.Genre ?? "" },
-                            new Avalonia.Controls.Button { Name = "OkBtn", Content = "OK", HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right }
-                        }
-                    }
-                };
-
-                string? newGenre = mediaFile.Genre;
-                if (window != null)
-                {
-                    var genreBox = ((Avalonia.Controls.StackPanel)genreDialog.Content!).Children[1] as Avalonia.Controls.TextBox;
-                    var okBtn = ((Avalonia.Controls.StackPanel)genreDialog.Content!).Children[2] as Avalonia.Controls.Button;
-                    okBtn.Click += (_, __) => genreDialog.Close(genreBox.Text);
-                    newGenre = await genreDialog.ShowDialog<string>(window);
-                }
-
-                // 2. Запит нового року
-                var yearDialog = new Avalonia.Controls.Window
-                {
-                    Title = "Редагувати рік релізу",
-                    Width = 400,
-                    Height = 120,
-                    Content = new Avalonia.Controls.StackPanel
-                    {
-                        Margin = new Avalonia.Thickness(10),
-                        Children =
-                        {
                             new Avalonia.Controls.TextBlock { Text = "Рік релізу:" },
                             new Avalonia.Controls.TextBox { Name = "YearBox", Text = mediaFile.ReleaseYear.ToString() },
-                            new Avalonia.Controls.Button { Name = "OkBtn", Content = "OK", HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right }
-                        }
-                    }
-                };
-
-                int newYear = mediaFile.ReleaseYear;
-                if (window != null)
-                {
-                    var yearBox = ((Avalonia.Controls.StackPanel)yearDialog.Content!).Children[1] as Avalonia.Controls.TextBox;
-                    var okBtn = ((Avalonia.Controls.StackPanel)yearDialog.Content!).Children[2] as Avalonia.Controls.Button;
-                    okBtn.Click += (_, __) => yearDialog.Close(yearBox.Text);
-                    var yearStr = await yearDialog.ShowDialog<string>(window);
-                    int.TryParse(yearStr, out newYear);
-                }
-
-                // 3. Запит нової обкладинки (URL)
-                var coverDialog = new Avalonia.Controls.Window
-                {
-                    Title = "Редагувати обкладинку (URL)",
-                    Width = 400,
-                    Height = 120,
-                    Content = new Avalonia.Controls.StackPanel
-                    {
-                        Margin = new Avalonia.Thickness(10),
-                        Children =
-                        {
                             new Avalonia.Controls.TextBlock { Text = "URL обкладинки:" },
                             new Avalonia.Controls.TextBox { Name = "CoverBox", Text = mediaFile.CoverImagePath ?? "" },
                             new Avalonia.Controls.Button { Name = "OkBtn", Content = "OK", HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right }
@@ -746,32 +765,36 @@ namespace MediaVault.ViewModels
                     }
                 };
 
-                string? newCover = mediaFile.CoverImagePath;
-                if (window != null)
-                {
-                    var coverBox = ((Avalonia.Controls.StackPanel)coverDialog.Content!).Children[1] as Avalonia.Controls.TextBox;
-                    var okBtn = ((Avalonia.Controls.StackPanel)coverDialog.Content!).Children[2] as Avalonia.Controls.Button;
-                    okBtn.Click += (_, __) => coverDialog.Close(coverBox.Text);
-                    newCover = await coverDialog.ShowDialog<string>(window);
-                }
+                var stack = (Avalonia.Controls.StackPanel)dialog.Content!;
+                var genreBox = stack.Children[1] as Avalonia.Controls.TextBox;
+                var yearBox = stack.Children[3] as Avalonia.Controls.TextBox;
+                var coverBox = stack.Children[5] as Avalonia.Controls.TextBox;
+                var okBtn = stack.Children[6] as Avalonia.Controls.Button;
 
-                // Оновлюємо властивості
-                mediaFile.Genre = newGenre ?? mediaFile.Genre;
-                mediaFile.ReleaseYear = newYear;
-                mediaFile.CoverImagePath = newCover ?? mediaFile.CoverImagePath;
-
-                // Зберігаємо зміни у бібліотеці
-                var entries = LoadLibraryFromXml(LibraryFilePath);
-                var entry = entries.FirstOrDefault(e => e.file_id == mediaFile.FilePath);
-                if (entry != null)
+                okBtn.Click += (_, __) =>
                 {
-                    entry.genre = mediaFile.Genre ?? "";
-                    entry.title = mediaFile.Title ?? "";
-                    entry.metadata = $"ReleaseYear: {mediaFile.ReleaseYear}, Cover: {mediaFile.CoverImagePath}, Duration: {mediaFile.Duration}";
+                    dialog.Close($"{genreBox.Text}|{yearBox.Text}|{coverBox.Text}");
+                };
+
+                var result = await dialog.ShowDialog<string>(window);
+
+                if (!string.IsNullOrEmpty(result))
+                {
+                    var parts = result.Split('|');
+                    if (parts.Length == 3)
+                    {
+                        var newGenre = parts[0];
+                        var newYearStr = parts[1];
+                        var newCover = parts[2];
+
+                        int newYear = mediaFile.ReleaseYear;
+                        int.TryParse(newYearStr, out newYear);
+
+                        return (newGenre, newYear, newCover);
+                    }
                 }
-                SaveLibraryToXml(entries, LibraryFilePath);
-                ApplySortAndFilter();
             }
+            return null;
         }
 
         public void CreatePlaylist(string name)
@@ -907,5 +930,4 @@ namespace MediaVault.ViewModels
             DurationDesc
         }
     }
-
 }

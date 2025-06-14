@@ -13,6 +13,7 @@ using QuestPDF.Infrastructure;
 using System.Threading.Tasks;
 using OfficeOpenXml;
 using DynamicData;
+using MediaVault.Models;
 
 namespace MediaVault.ViewModels
 {
@@ -41,11 +42,11 @@ namespace MediaVault.ViewModels
         public event EventHandler? BackToLibraryRequested;
 
         public ICommand BackCommand { get; }
-        public ICommand ExportReportCommand { get; } // Додаємо команду експорту
+        public ICommand ExportReportCommand { get; }
 
         public ObservableCollection<MonthlyStatistic> MonthlyStatistics { get; }
-        public ObservableCollection<DailyIntervalStatistic> DailyIntervalStatistics { get; } // нова колекція
-        public ObservableCollection<GenreStatistic> GenreStatistics { get; } // нова колекція
+        public ObservableCollection<DailyIntervalStatistic> DailyIntervalStatistics { get; }
+        public ObservableCollection<GenreStatistic> GenreStatistics { get; }
 
         public ObservableCollection<int> AvailableYears { get; } = new();
         private int _selectedYear;
@@ -56,7 +57,7 @@ namespace MediaVault.ViewModels
             {
                 if (SetProperty(ref _selectedYear, value))
                 {
-                    LoadMonthlyStatisticsFromHistory(); // Перерахувати статистику для вибраного року
+                    LoadMonthlyStatisticsFromHistory();
                 }
             }
         }
@@ -96,14 +97,7 @@ namespace MediaVault.ViewModels
 
         private readonly Dictionary<string, string> fileIdToGenre = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-        private static string GetLibraryFilePath()
-        {
-            var exeDir = AppContext.BaseDirectory;
-            var dataPath = Path.Combine(exeDir, "Data", "library.xml");
-            return dataPath;
-        }
-
-        private readonly List<dynamic> allRecords = new();
+        private readonly List<ViewingHistoryRecord> allRecords = new();
 
         public ObservableCollection<string> ExportFormats { get; } = new() { "pdf", "excel" };
         private string _selectedExportFormat = "pdf";
@@ -122,7 +116,6 @@ namespace MediaVault.ViewModels
             MonthlyStatistics = new ObservableCollection<MonthlyStatistic>();
             DailyIntervalStatistics = new ObservableCollection<DailyIntervalStatistic>();
             GenreStatistics = new ObservableCollection<GenreStatistic>();
-            LoadLibraryGenres();
             LoadAllRecordsFromHistory();
             if (AvailableYears.Count > 0)
                 SelectedYear = AvailableYears.Max();
@@ -138,30 +131,6 @@ namespace MediaVault.ViewModels
             QuestPDF.Settings.License = LicenseType.Community;
         }
 
-        private void LoadLibraryGenres()
-        {
-            fileIdToGenre.Clear();
-            string libraryFilePath = GetLibraryFilePath();
-            if (!File.Exists(libraryFilePath))
-                return;
-
-            try
-            {
-                var doc = XDocument.Load(libraryFilePath);
-                foreach (var entry in doc.Descendants("LibraryEntry"))
-                {
-                    var fileId = entry.Element("file_id")?.Value ?? "";
-                    var genre = entry.Element("genre")?.Value ?? "";
-                    if (!string.IsNullOrWhiteSpace(fileId))
-                        fileIdToGenre[fileId] = string.IsNullOrWhiteSpace(genre) ? "Інше" : genre;
-                }
-            }
-            catch
-            {
-                Debug.WriteLine("Error loading library genres from XML.");
-            }
-        }
-
         private void LoadAllRecordsFromHistory()
         {
             string historyFilePath = GetHistoryFilePath();
@@ -175,18 +144,21 @@ namespace MediaVault.ViewModels
             {
                 var doc = XDocument.Load(historyFilePath);
                 var records = doc.Descendants("Record")
-                    .Select(r => new
+                    .Select(r => new ViewingHistoryRecord
                     {
-                        Date = DateTime.Parse(r.Element("ViewDate")?.Value ?? DateTime.MinValue.ToString(), CultureInfo.InvariantCulture),
-                        DurationSeconds = double.TryParse(r.Element("Duration")?.Value, out var d) ? d : 0,
+                        RecordId = int.TryParse(r.Element("RecordId")?.Value, out var id) ? id : 0,
                         FileId = r.Element("FileId")?.Value ?? "",
                         FileName = r.Element("FileName")?.Value ?? "",
+                        ViewDate = DateTime.TryParse(r.Element("ViewDate")?.Value, out var dt) ? dt : DateTime.MinValue,
+                        Duration = int.TryParse(r.Element("Duration")?.Value, out var dur) ? dur : 0,
+                        EndTime = int.TryParse(r.Element("EndTime")?.Value, out var et) ? et : 0,
+                        Status = r.Element("Status")?.Value ?? "",
                         Genre = r.Element("Genre")?.Value
                             ?? (fileIdToGenre.TryGetValue(r.Element("FileId")?.Value ?? "", out var genre) ? genre : "Інше")
                     })
                     .ToList();
 
-                foreach (var y in records.Select(r => r.Date.Year).Distinct().OrderBy(y => y))
+                foreach (var y in records.Select(r => r.ViewDate.Year).Distinct().OrderBy(y => y))
                     AvailableYears.Add(y);
 
                 allRecords.AddRange(records);
@@ -199,13 +171,13 @@ namespace MediaVault.ViewModels
 
         private void LoadMonthlyStatisticsFromHistory()
         {
-            var records = allRecords.Where(r => r.Date.Year == SelectedYear).ToList();
+            var records = allRecords.Where(r => r.ViewDate.Year == SelectedYear).ToList();
 
             MonthlyStatistics.Clear();
             for (int month = 1; month <= 12; month++)
             {
-                var monthRecords = records.Where(r => r.Date.Month == month);
-                double totalHours = Math.Round(monthRecords.Sum(x => (double)x.DurationSeconds) / 3600.0, 1);
+                var monthRecords = records.Where(r => r.ViewDate.Month == month);
+                double totalHours = Math.Round(monthRecords.Sum(x => x.Duration) / 3600.0, 1);
                 MonthlyStatistics.Add(new MonthlyStatistic
                 {
                     Month = $"{GetMonthShortName(month)} {SelectedYear}",
@@ -217,16 +189,24 @@ namespace MediaVault.ViewModels
             PeriodEnd = new DateTimeOffset(new DateTime(SelectedYear, 12, 31, 0, 0, 0, DateTimeKind.Local));
 
             var genreStats = records
-                .GroupBy(r =>
+                .SelectMany(r =>
                 {
-                    if (fileIdToGenre.TryGetValue(r.FileId, out string genre) && !string.IsNullOrWhiteSpace(genre))
-                        return genre;
-                    return "Інше";
+                    var genres = (r.Genre ?? "Інше")
+                        .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                        .Select(g => g.Trim())
+                        .Where(g => !string.IsNullOrWhiteSpace(g))
+                        .DefaultIfEmpty("Інше")
+                        .ToList();
+
+                    double durationPerGenre = genres.Count > 0 ? (double)r.Duration / genres.Count : 0;
+
+                    return genres.Select(g => new { Genre = g, DurationSeconds = durationPerGenre });
                 })
+                .GroupBy(x => string.IsNullOrWhiteSpace(x.Genre) ? "Інше" : x.Genre)
                 .Select(g => new
                 {
                     Genre = g.Key,
-                    TotalSeconds = g.Sum(x => (double)x.DurationSeconds)
+                    TotalSeconds = g.Sum(x => x.DurationSeconds)
                 })
                 .ToList();
 
@@ -262,7 +242,7 @@ namespace MediaVault.ViewModels
             var end = PeriodEnd.Value.Date.AddDays(1).AddTicks(-1);
 
             var records = allRecords
-                .Where(r => r.Date >= start && r.Date <= end)
+                .Where(r => r.ViewDate >= start && r.ViewDate <= end)
                 .ToList();
 
             var intervalCount = 8;
@@ -275,12 +255,12 @@ namespace MediaVault.ViewModels
                 .ToList();
 
             var dailyGrouped = records
-                .GroupBy(r => r.Date.Hour / 3)
+                .GroupBy(r => r.ViewDate.Hour / 3)
                 .OrderBy(g => g.Key)
                 .Select(g => new DailyIntervalStatistic
                 {
                     Interval = intervals[g.Key].Label,
-                    TotalHours = Math.Round(g.Sum(x => (double)x.DurationSeconds) / 3600.0, 2)
+                    TotalHours = Math.Round(g.Sum(x => (double)x.Duration) / 3600.0, 2)
                 })
                 .ToList();
 
@@ -520,7 +500,7 @@ namespace MediaVault.ViewModels
 
         private static string GenerateGenrePieChartSvg(List<GenreStatistic> genres)
         {
-            int width = 170, height = 170;
+            int width = 340, height = 170;
             double cx = 80, cy = 80, radius = 60;
             double total = genres.Sum(g => g.TotalHours);
             if (total <= 0) total = 1;
@@ -531,14 +511,14 @@ namespace MediaVault.ViewModels
 
             var svg = new System.Text.StringBuilder();
             svg.AppendLine($"<svg width='{width}' height='{height}' xmlns='http://www.w3.org/2000/svg'>");
+
             double startAngle = 0;
             int colorIdx = 0;
             var nonZeroGenres = genres.Where(g => g.TotalHours > 0).ToList();
             if (nonZeroGenres.Count == 1)
             {
                 var g = nonZeroGenres[0];
-                svg.AppendLine($"<circle cx='{cx}' cy='{cy}' r='{radius}' fill='{palette[0]}' stroke='#444' stroke-width='1'/>");
-                svg.AppendLine($"<text x='{cx}' y='{cy + radius + 20}' font-size='9' text-anchor='middle'>{g.Genre} ({g.Percent}%)</text>");
+                svg.AppendLine($"<circle cx='{cx.ToString(CultureInfo.InvariantCulture)}' cy='{cy.ToString(CultureInfo.InvariantCulture)}' r='{radius.ToString(CultureInfo.InvariantCulture)}' fill='{palette[0]}' stroke='#444' stroke-width='1'/>");
             }
             else
             {
@@ -548,23 +528,30 @@ namespace MediaVault.ViewModels
                     if (sweep <= 0.1) continue;
                     double endAngle = startAngle + sweep;
                     string path = DescribeArc(cx, cy, radius, startAngle, endAngle);
-                    svg.AppendLine($"<path d='{path}' fill='{palette[colorIdx % palette.Length]}' stroke='#444' stroke-width='1'/>");
-                    double midAngle = startAngle + sweep / 2;
-                    double rad = (midAngle - 90) * Math.PI / 180.0;
-                    double labelX = cx + Math.Cos(rad) * (radius + 20);
-                    double labelY = cy + Math.Sin(rad) * (radius + 20);
-                    svg.AppendLine($"<text x='{labelX}' y='{labelY}' font-size='9' text-anchor='middle'>{g.Genre} ({g.Percent}%)</text>");
+                    svg.AppendLine($"<path d='{path}' fill='{palette[colorIdx % palette.Length]}'/>");
                     startAngle += sweep;
                     colorIdx++;
                 }
             }
-            svg.AppendLine($"<circle cx='{cx}' cy='{cy}' r='{radius}' fill='none' stroke='#888' stroke-width='1'/>");
+            svg.AppendLine($"<circle cx='{cx.ToString(CultureInfo.InvariantCulture)}' cy='{cy.ToString(CultureInfo.InvariantCulture)}' r='{radius.ToString(CultureInfo.InvariantCulture)}' fill='none' stroke='#888' stroke-width='1'/>");
+
+            int legendX = 170, legendY = 25, legendRectSize = 14, legendSpacing = 22;
+            colorIdx = 0;
+            foreach (var g in genres.Where(x => x.TotalHours > 0))
+            {
+                int y = legendY + colorIdx * legendSpacing;
+                svg.AppendLine($"<rect x='{legendX}' y='{y}' width='{legendRectSize}' height='{legendRectSize}' fill='{palette[colorIdx % palette.Length]}'/>");
+                svg.AppendLine($"<text x='{legendX + legendRectSize + 6}' y='{y + legendRectSize - 3}' font-size='11' font-family='Arial'>{g.Genre} ({g.Percent}%)</text>");
+                colorIdx++;
+            }
+
             svg.AppendLine("</svg>");
             return svg.ToString();
         }
 
         private static string DescribeArc(double cx, double cy, double r, double startAngle, double endAngle)
         {
+            var fmt = CultureInfo.InvariantCulture;
             double startRad = Math.PI * startAngle / 180.0;
             double endRad = Math.PI * endAngle / 180.0;
             double x1 = cx + r * Math.Cos(startRad);
@@ -572,7 +559,7 @@ namespace MediaVault.ViewModels
             double x2 = cx + r * Math.Cos(endRad);
             double y2 = cy + r * Math.Sin(endRad);
             int largeArc = (endAngle - startAngle) > 180 ? 1 : 0;
-            return $"M {cx},{cy} L {x1},{y1} A {r},{r} 0 {largeArc} 1 {x2},{y2} Z";
+            return $"M {cx.ToString(fmt)},{cy.ToString(fmt)} L {x1.ToString(fmt)},{y1.ToString(fmt)} A {r.ToString(fmt)},{r.ToString(fmt)} 0 {largeArc} 1 {x2.ToString(fmt)},{y2.ToString(fmt)} Z";
         }
 
         private static void ExportToExcel(string filePath, ExportData data)
