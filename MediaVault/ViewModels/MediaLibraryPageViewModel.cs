@@ -11,6 +11,7 @@ using TMDbLib.Client;
 using System.Collections.Generic;
 using Avalonia.Threading;
 using System.Text.Json;
+using System.Timers;
 
 namespace MediaVault.ViewModels
 {
@@ -78,6 +79,9 @@ namespace MediaVault.ViewModels
         public ICommand AddToPlaylistCommand { get; }
         public ICommand RemoveFromPlaylistCommand { get; }
 
+        private Timer? _autoScanTimer;
+        private string? _autoScanFolderPath;
+
         public MediaLibraryPageViewModel()
         {
             _tmdbClient = new TMDbClient("7354fcc62bb407139f5fcd0e5b62a435");
@@ -107,12 +111,145 @@ namespace MediaVault.ViewModels
             if (!Directory.Exists(LibraryDirectory))
                 Directory.CreateDirectory(LibraryDirectory);
 
-            if (System.IO.File.Exists(LibraryFilePath))
-            {
-                LoadLibraryAndDisplay();
-            }
+            TryAutoScanOnStartup();
             LoadGenresFromTmdb();
             LoadPlaylists();
+            StartAutoScanTimer();
+        }
+
+        public async Task ScanDirectory(string path)
+        {
+            if (Directory.Exists(path))
+            {
+                var supportedExtensions = new[] { ".mp4", ".avi", ".mkv", ".mov", ".mp3", ".wav", ".flac" };
+                var files = Directory.EnumerateFiles(path, "*.*", SearchOption.AllDirectories)
+                                     .Where(file => supportedExtensions.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase))
+                                     .ToList();
+
+                var existingEntries = LoadLibraryFromXml(LibraryFilePath);
+                var existingEntriesDict = existingEntries.ToDictionary(e => e.file_id ?? "", e => e);
+
+                var updateTasks = new List<Task>();
+                var tempMediaFiles = new List<MediaFile>();
+
+                foreach (var file in files)
+                {
+                    var mediaFile = new MediaFile(Path.GetFileName(file), file, GetMediaType(file));
+                    string titleWithoutExtension = Path.GetFileNameWithoutExtension(file);
+
+                    TimeSpan? localDuration = null;
+                    if (existingEntriesDict.TryGetValue(file, out var existingEntry))
+                    {
+                        var localMedia = LibraryEntryToMediaFile(existingEntry);
+                        mediaFile.Genre = localMedia.Genre;
+                        mediaFile.ReleaseYear = localMedia.ReleaseYear;
+                        mediaFile.CoverImagePath = localMedia.CoverImagePath;
+                        mediaFile.Duration = localMedia.Duration;
+                        mediaFile.AddedDate = localMedia.AddedDate;
+                        localDuration = localMedia.Duration;
+                    }
+
+                    var updateTask = UpdateMediaDetailsFromTMDb(mediaFile, titleWithoutExtension).ContinueWith(_ =>
+                    {
+                        lock (tempMediaFiles)
+                        {
+                            if (mediaFile.AddedDate == default)
+                                mediaFile.AddedDate = DateTime.Now;
+
+                            if (mediaFile.Duration == default || mediaFile.Duration == TimeSpan.Zero)
+                            {
+                                bool durationSet = false;
+                                try
+                                {
+                                    using var tagFile = TagLib.File.Create(file);
+                                    if (tagFile.Properties.Duration > TimeSpan.Zero)
+                                    {
+                                        mediaFile.Duration = tagFile.Properties.Duration;
+                                        durationSet = true;
+                                    }
+                                }
+                                catch { }
+                                if (!durationSet && localDuration.HasValue && localDuration.Value > TimeSpan.Zero)
+                                {
+                                    mediaFile.Duration = localDuration.Value;
+                                }
+                            }
+
+                            tempMediaFiles.Add(mediaFile);
+                        }
+                    });
+                    updateTasks.Add(updateTask);
+                }
+
+                await Task.WhenAll(updateTasks);
+
+                tempMediaFiles = tempMediaFiles.OrderBy(m => m.Title).ToList();
+
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    MediaFiles.Clear();
+                    _allMediaFiles.Clear();
+                    foreach (var m in tempMediaFiles)
+                    {
+                        MediaFiles.Add(m);
+                        _allMediaFiles.Add(m);
+                    }
+                    ApplySortAndFilter();
+                });
+
+                var libraryEntries = tempMediaFiles.Select(m =>
+                {
+                    var entry = new LibraryEntry
+                    {
+                        file_id = m.FilePath,
+                        title = m.Title,
+                        genre = m.Genre,
+                        added_date = m.AddedDate,
+                    };
+                    UpdateMetadataInEntry(entry, m);
+                    return entry;
+                }).ToList();
+
+                SaveLibraryToXml(libraryEntries, LibraryFilePath);
+            }
+        }
+
+        private void TryAutoScanOnStartup()
+        {
+            try
+            {
+                var configPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "config.xml");
+                if (File.Exists(configPath))
+                {
+                    var serializer = new XmlSerializer(typeof(ConfigModel));
+                    using var stream = File.OpenRead(configPath);
+                    var config = (ConfigModel?)serializer.Deserialize(stream);
+                    if (config != null && !string.IsNullOrWhiteSpace(config.MediaFolderPath) && Directory.Exists(config.MediaFolderPath))
+                    {
+                        _autoScanFolderPath = config.MediaFolderPath;
+                        Task.Run(async () => await ScanDirectory(_autoScanFolderPath));
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Auto scan config error: {ex.Message}");
+            }
+        }
+
+        private void StartAutoScanTimer()
+        {
+            const double intervalMs = 60 * 60 * 1000;
+            _autoScanTimer = new Timer(intervalMs);
+            _autoScanTimer.Elapsed += async (s, e) =>
+            {
+                if (!string.IsNullOrWhiteSpace(_autoScanFolderPath) && Directory.Exists(_autoScanFolderPath))
+                {
+                    await ScanDirectory(_autoScanFolderPath);
+                }
+            };
+            _autoScanTimer.AutoReset = true;
+            _autoScanTimer.Enabled = true;
         }
 
         public ObservableCollection<MediaFile> MediaFiles { get; }
@@ -240,91 +377,6 @@ namespace MediaVault.ViewModels
 
         private readonly List<MediaFile> _allMediaFiles = new List<MediaFile>();
 
-        public async Task ScanDirectory(string path)
-        {
-            if (Directory.Exists(path))
-            {
-                var supportedExtensions = new[] { ".mp4", ".avi", ".mkv", ".mov", ".mp3", ".wav", ".flac" };
-                var files = Directory.EnumerateFiles(path, "*.*", SearchOption.AllDirectories)
-                                     .Where(file => supportedExtensions.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase));
-
-                var existingEntries = LoadLibraryFromXml(LibraryFilePath);
-                var existingEntriesDict = existingEntries.ToDictionary(e => e.file_id ?? "", e => e);
-
-                var libraryEntries = new List<LibraryEntry>();
-
-                MediaFiles.Clear();
-                _allMediaFiles.Clear();
-
-                var updateTasks = new List<Task>();
-
-                foreach (var file in files)
-                {
-                    var mediaFile = new MediaFile(Path.GetFileName(file), file, GetMediaType(file));
-                    string titleWithoutExtension = Path.GetFileNameWithoutExtension(file);
-
-                    TimeSpan? localDuration = null;
-                    if (existingEntriesDict.TryGetValue(file, out var existingEntry))
-                    {
-                        var localMedia = LibraryEntryToMediaFile(existingEntry);
-                        mediaFile.Genre = localMedia.Genre;
-                        mediaFile.ReleaseYear = localMedia.ReleaseYear;
-                        mediaFile.CoverImagePath = localMedia.CoverImagePath;
-                        mediaFile.Duration = localMedia.Duration;
-                        mediaFile.AddedDate = localMedia.AddedDate;
-                        localDuration = localMedia.Duration;
-                    }
-
-                    var updateTask = UpdateMediaDetailsFromTMDb(mediaFile, titleWithoutExtension).ContinueWith(_ =>
-                    {
-                        Dispatcher.UIThread.Post(() =>
-                        {
-                            if (mediaFile.AddedDate == default)
-                                mediaFile.AddedDate = DateTime.Now;
-
-                            if (mediaFile.Duration == default || mediaFile.Duration == TimeSpan.Zero)
-                            {
-                                bool durationSet = false;
-                                try
-                                {
-                                    using var tagFile = TagLib.File.Create(file);
-                                    if (tagFile.Properties.Duration > TimeSpan.Zero)
-                                    {
-                                        mediaFile.Duration = tagFile.Properties.Duration;
-                                        durationSet = true;
-                                    }
-                                }
-                                catch { }
-                                if (!durationSet && localDuration.HasValue && localDuration.Value > TimeSpan.Zero)
-                                {
-                                    mediaFile.Duration = localDuration.Value;
-                                }
-                            }
-
-                            MediaFiles.Add(mediaFile);
-                            _allMediaFiles.Add(mediaFile);
-
-                            var entry = new LibraryEntry
-                            {
-                                file_id = file,
-                                title = mediaFile.Title,
-                                genre = mediaFile.Genre,
-                                added_date = mediaFile.AddedDate,
-                            };
-                            UpdateMetadataInEntry(entry, mediaFile);
-                            libraryEntries.Add(entry);
-                        });
-                    });
-                    updateTasks.Add(updateTask);
-                }
-
-                await Task.WhenAll(updateTasks);
-
-                SaveLibraryToXml(libraryEntries, LibraryFilePath);
-                ApplySortAndFilter();
-            }
-        }
-
         private static void SaveLibraryToXml(List<LibraryEntry> entries, string filePath)
         {
             try
@@ -403,6 +455,17 @@ namespace MediaVault.ViewModels
             {
                 Debug.WriteLine($"[TMDb] Searching for: {searchTitle}");
                 var searchResult = await _tmdbClient.SearchMovieAsync(searchTitle);
+
+                // if (searchResult.Results.Count == 0)
+                // {
+                //     var titleNoYear = System.Text.RegularExpressions.Regex.Replace(searchTitle, @"\s*\(\d{4}\)", "");
+                //     if (!string.Equals(titleNoYear, searchTitle, StringComparison.OrdinalIgnoreCase))
+                //     {
+                //         Debug.WriteLine($"[TMDb] Retry search without year: {titleNoYear}");
+                //         searchResult = await _tmdbClient.SearchMovieAsync(titleNoYear);
+                //     }
+                // }
+
                 Debug.WriteLine($"[TMDb] Results for '{searchTitle}': {searchResult.Results.Count}");
                 var movie = searchResult.Results.FirstOrDefault();
                 if (movie != null)
