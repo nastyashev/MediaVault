@@ -70,13 +70,23 @@ namespace MediaVault.Views
 
         public class HoursToHeightConverter : IValueConverter
         {
+            public double MaxValue { get; set; } = 1;
+            public double MinHeight { get; set; } = 10;
+            public double MaxHeight { get; set; } = 120;
+
             public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
             {
-                if (value is double hours)
-                    return Math.Max(10, hours * 8);
-                if (value is int intHours)
-                    return Math.Max(10, intHours * 8);
-                return 10;
+                double hours = 0;
+                if (value is double d)
+                    hours = d;
+                else if (value is int i)
+                    hours = i;
+
+                if (hours <= 0 || MaxValue <= 0)
+                    return MinHeight;
+
+                var height = MinHeight + (hours / MaxValue) * (MaxHeight - MinHeight);
+                return Math.Max(MinHeight, height);
             }
 
             public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
